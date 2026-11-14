@@ -1,3 +1,7 @@
+config dhcp 'iptv_bridge'
+	option interface 'iptv_bridge'
+	option ignore '1'
+
 config dhcp 'stb'
 	option interface 'stb'
 	option start '2'

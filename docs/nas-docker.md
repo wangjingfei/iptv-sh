@@ -58,3 +58,13 @@ curl -fsS http://127.0.0.1:8091/status.json
 6. 回滚时恢复旧目录或文件，并只重建对应服务。
 
 禁止提交 `docker/iptv-epg/data/*.xml`、生成的播放列表或运行状态文件；这些文件已被忽略。
+
+## 在线验证
+
+在仓库根目录执行：
+
+```sh
+make live-check
+```
+
+该命令会分批读取全部频道的 udpxy 源，等待客户端清理后继续下一批，再实际生成一条 HLS 并核对 EPG 播放列表与 XMLTV。它会短暂产生组播订阅。只需快速抽测时使用 `make live-check-quick`。

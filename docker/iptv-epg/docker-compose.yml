@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: local/iptv-epg:1.0
+    image: local/iptv-epg:1.1
     container_name: iptv-epg
     init: true
     restart: unless-stopped

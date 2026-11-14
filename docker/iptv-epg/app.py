@@ -83,7 +83,7 @@ def load_local_channels():
     payload = json.loads(CHANNELS_PATH.read_text(encoding="utf-8"))
     channels = payload.get("channels")
     if not isinstance(channels, dict) or not channels:
-        raise ValueError("channels.json has no channels")
+        raise ValueError("channels.json 中没有频道")
     result = []
     for channel_id, item in channels.items():
         name = item.get("name") if isinstance(item, dict) else None
@@ -214,7 +214,7 @@ def refresh():
     if not refresh_lock.acquire(blocking=False):
         return
     try:
-        log(f"refreshing EPG from {SOURCE_URL}")
+        log(f"正在从 {SOURCE_URL} 刷新 EPG")
         source_body = download_source()
         xml_body, playlist, status = build_outputs(source_body)
         DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -222,11 +222,11 @@ def refresh():
         atomic_write(PLAYLIST_PATH, playlist)
         atomic_write(STATUS_PATH, json.dumps(status, ensure_ascii=False, indent=2) + "\n")
         log(
-            f"EPG ready: {status['matched_channels']}/{status['total_channels']} channels, "
-            f"{status['programme_count']} programmes"
+            f"EPG 已就绪：{status['matched_channels']}/{status['total_channels']} 个频道，"
+            f"{status['programme_count']} 条节目"
         )
     except Exception as exc:
-        log(f"EPG refresh failed; keeping previous cache: {exc}")
+        log(f"EPG 刷新失败，保留旧缓存：{exc}")
         if not STATUS_PATH.exists():
             DATA_DIR.mkdir(parents=True, exist_ok=True)
             atomic_write(
@@ -248,7 +248,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def send_file(self, path, content_type):
         if not path.exists():
-            self.send_error(503, "EPG cache is not ready")
+            self.send_error(503, "EPG 缓存尚未就绪")
             return
         body = path.read_bytes()
         self.send_response(200)
@@ -275,7 +275,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(body)
             else:
-                self.send_error(503, "EPG cache is not ready")
+                self.send_error(503, "EPG 缓存尚未就绪")
         else:
             self.send_error(404)
 
@@ -294,7 +294,7 @@ def main():
     thread = threading.Thread(target=refresh_loop, name="epg-refresh", daemon=True)
     thread.start()
     server = ThreadingHTTPServer((BIND, PORT), Handler)
-    log(f"serving on http://{BIND}:{PORT}")
+    log(f"正在监听 http://{BIND}:{PORT}")
     server.serve_forever()
 
 

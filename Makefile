@@ -1,4 +1,4 @@
-.PHONY: check live-check
+.PHONY: check live-check live-check-quick
 
 check:
 	python3 scripts/validate.py
@@ -6,6 +6,7 @@ check:
 	./scripts/check-secrets.sh
 
 live-check:
-	curl -fsS http://192.168.31.200:8090/healthz
-	curl -fsS http://192.168.31.200:8091/healthz
-	curl -fsS http://192.168.31.200:8091/status.json
+	python3 scripts/live_check.py
+
+live-check-quick:
+	python3 scripts/live_check.py --skip-all-sources

@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: local/iptv-hls:1.0
+    image: local/iptv-hls:1.1
     container_name: iptv-hls
     init: true
     restart: unless-stopped

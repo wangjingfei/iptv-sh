@@ -20,10 +20,18 @@
 make check
 ```
 
+在当前家庭网络中执行完整在线检查：
+
+```sh
+make live-check
+```
+
+完整检查会逐一读取全部组播源，再验证 HLS 和 EPG；`make live-check-quick` 只抽测一个频道，适合日常快速确认。
+
 全新安装时，按以下顺序操作：
 
 1. 阅读[网络拓扑](docs/topology.md)，连接 IPTV 输入端口和机顶盒端口。
-2. 备份路由器，然后阅读[路由器配置](docs/router-setup.md)并检查带保护机制的 `router/apply-iptv.sh` 脚本。
+2. 备份路由器，然后阅读[路由器配置](docs/router-setup.md)并检查带型号、资源和回滚状态保护的 `router/apply-iptv.sh` 脚本。
 3. 将 `docker/iptv-hls` 和 `docker/iptv-epg` 复制到 NAS 上同级的两个目录，并按照 [NAS Docker 部署](docs/nas-docker.md)操作。
 4. 在支持 XMLTV 的播放器中导入 `http://192.168.31.200:8091/playlist.m3u`；不需要节目单时，也可以继续使用 8090 端口的播放列表。
 5. 修改网络前，先参考[故障排查](docs/troubleshooting.md)中的只读检查方法。

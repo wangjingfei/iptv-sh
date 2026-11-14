@@ -47,30 +47,30 @@ class ConfigStore:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             channels = raw.get("channels")
             if not isinstance(channels, dict):
-                raise ValueError("top-level 'channels' must be an object")
+                raise ValueError("顶层 channels 必须是对象")
 
             validated = {}
             for channel_id, value in channels.items():
                 if not CHANNEL_ID_RE.fullmatch(channel_id):
-                    raise ValueError(f"invalid channel id: {channel_id!r}")
+                    raise ValueError(f"无效频道 ID：{channel_id!r}")
                 if not isinstance(value, dict):
-                    raise ValueError(f"channel {channel_id!r} must be an object")
+                    raise ValueError(f"频道 {channel_id!r} 必须是对象")
                 name = value.get("name")
                 source = value.get("source")
                 if not isinstance(name, str) or not name.strip():
-                    raise ValueError(f"channel {channel_id!r} has no name")
+                    raise ValueError(f"频道 {channel_id!r} 没有名称")
                 if not isinstance(source, str) or not source.startswith(("http://", "https://")):
-                    raise ValueError(f"channel {channel_id!r} has an invalid HTTP source")
+                    raise ValueError(f"频道 {channel_id!r} 的 HTTP 源无效")
                 validated[channel_id] = {"name": name.strip(), "source": source}
 
             with self.lock:
                 self.channels = validated
                 self.mtime_ns = stat.st_mtime_ns
-            log(f"loaded {len(validated)} channel(s) from {self.path}")
+            log(f"已从 {self.path} 加载 {len(validated)} 个频道")
         except Exception as exc:
             if force:
                 raise
-            log(f"configuration reload failed; keeping previous config: {exc}")
+            log(f"配置重载失败，继续使用旧配置：{exc}")
 
     def snapshot(self):
         self.reload()
@@ -146,7 +146,7 @@ class StreamManager:
     def ensure_running(self, channel_id):
         channel = self.channel_config(channel_id)
         if channel is None:
-            return None, "unknown channel"
+            return None, "未知频道"
 
         now = time.monotonic()
         with self.lock:
@@ -155,7 +155,7 @@ class StreamManager:
                 state.last_access = now
                 return state, None
             if state:
-                self._stop_locked(channel_id, "configuration changed or process exited")
+                self._stop_locked(channel_id, "配置已变化或进程已退出")
 
             directory = RUNTIME_ROOT / channel_id
             self._clean_directory(directory)
@@ -173,7 +173,7 @@ class StreamManager:
                 last_access=now,
             )
             self.states[channel_id] = state
-            log(f"started channel={channel_id} pid={process.pid}")
+            log(f"频道已启动 channel={channel_id} pid={process.pid}")
             return state, None
 
     def touch(self, channel_id):
@@ -187,14 +187,14 @@ class StreamManager:
         playlist = state.directory / "index.m3u8"
         while time.monotonic() < deadline:
             if state.process.poll() is not None:
-                return False, f"ffmpeg exited with code {state.process.returncode}"
+                return False, f"FFmpeg 已退出，状态码为 {state.process.returncode}"
             try:
                 if playlist.stat().st_size > 0:
                     return True, None
             except FileNotFoundError:
                 pass
             time.sleep(0.2)
-        return False, f"playlist was not ready within {START_TIMEOUT} seconds"
+        return False, f"播放列表在 {START_TIMEOUT} 秒内未就绪"
 
     def _stop_locked(self, channel_id, reason):
         state = self.states.pop(channel_id, None)
@@ -211,7 +211,7 @@ class StreamManager:
                 except ProcessLookupError:
                     pass
         self._clean_directory(state.directory)
-        log(f"stopped channel={channel_id} reason={reason}")
+        log(f"频道已停止 channel={channel_id} 原因={reason}")
 
     def _reaper_loop(self):
         while not self.stopping.wait(5):
@@ -219,9 +219,9 @@ class StreamManager:
             with self.lock:
                 for channel_id, state in list(self.states.items()):
                     if state.process.poll() is not None:
-                        self._stop_locked(channel_id, "ffmpeg exited")
+                        self._stop_locked(channel_id, "FFmpeg 已退出")
                     elif now - state.last_access >= IDLE_TIMEOUT:
-                        self._stop_locked(channel_id, f"idle for {IDLE_TIMEOUT} seconds")
+                        self._stop_locked(channel_id, f"已空闲 {IDLE_TIMEOUT} 秒")
 
     def status(self):
         with self.lock:
@@ -239,7 +239,7 @@ class StreamManager:
         self.stopping.set()
         with self.lock:
             for channel_id in list(self.states):
-                self._stop_locked(channel_id, "service shutdown")
+                self._stop_locked(channel_id, "服务关闭")
 
 
 class RequestHandler(BaseHTTPRequestHandler):
@@ -271,7 +271,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             file = path.open("rb")
         except FileNotFoundError:
-            self._bytes(HTTPStatus.NOT_FOUND, "segment not found\n")
+            self._bytes(HTTPStatus.NOT_FOUND, "找不到媒体分片\n")
             return
         with file:
             size = os.fstat(file.fileno()).st_size
@@ -374,12 +374,12 @@ def main():
     server = IPTVServer((BIND, PORT), RequestHandler, config, manager)
 
     def shutdown(signum, _frame):
-        log(f"received signal {signum}; shutting down")
+        log(f"收到信号 {signum}，正在关闭")
         threading.Thread(target=server.shutdown, daemon=True).start()
 
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
-    log(f"listening on {BIND}:{PORT}, idle timeout={IDLE_TIMEOUT}s")
+    log(f"正在监听 {BIND}:{PORT}，空闲超时为 {IDLE_TIMEOUT} 秒")
     try:
         server.serve_forever(poll_interval=0.5)
     finally:
