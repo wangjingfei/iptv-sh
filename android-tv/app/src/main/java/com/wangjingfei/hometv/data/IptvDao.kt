@@ -36,6 +36,9 @@ interface IptvDao {
     @Query("DELETE FROM favorite_archive WHERE removedAt < :cutoff")
     suspend fun purgeArchivedFavorites(cutoff: Long)
 
+    @Query("DELETE FROM favorite_archive WHERE channelId IN (:ids)")
+    suspend fun deleteRestoredFavorites(ids: List<String>)
+
     @Query("DELETE FROM favorite_archive")
     suspend fun clearFavoriteArchive()
 
@@ -74,6 +77,7 @@ interface IptvDao {
         upsertChannels(channels)
         if (channels.isNotEmpty()) {
             restoreArchivedFavorites(cutoff)
+            deleteRestoredFavorites(channels.map { it.id })
             deleteMissingChannels(channels.map { it.id })
         }
         purgeArchivedFavorites(cutoff)
