@@ -44,6 +44,20 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.wangjingfei.hometv.debug/com.wangjingfei.hometv.MainActivity
 ```
 
+也可以在仓库根目录运行可重复的设备冒烟检查。脚本会自动选择唯一已授权设备、安装 APK、从 TV 启动器启动并确认应用进入前台：
+
+```sh
+make android-device-check
+```
+
+存在多个 ADB 设备时用 `ANDROID_TV_SERIAL=<序列号>` 指定目标。需要同时执行 6 项设备测试时运行：
+
+```sh
+./scripts/verify-android-device.sh --with-tests
+```
+
+脚本通过只证明安装和启动链路可用；首次设置以外的完整遥控器路径、4K 解码和长时间播放仍需人工观察。
+
 卸载开发版即可回滚，不会影响路由器或 NAS：
 
 ```sh

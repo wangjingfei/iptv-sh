@@ -59,4 +59,16 @@ make live-check-quick
 ./gradlew connectedDebugAndroidTest
 ```
 
+在仓库根目录安装并验证 TV 启动器启动链路：
+
+```sh
+make android-device-check
+```
+
+需要在同一设备上先跑仪器测试再安装启动时：
+
+```sh
+./scripts/verify-android-device.sh --with-tests
+```
+
 GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43632204828`：完整构建、临时 release 签名校验和 API 35 模拟器的 6 项设备测试均通过，并成功上传 APK 与测试报告；6 项包括 5 项 Room/数据行为测试和 1 项完整 Activity 的首次设置 DPAD 焦点测试。后续提交仍以各自运行结果为准。完整验收命令使用 `--no-parallel`，避免 AGP Lint 与 Hilt 生成测试源码之间的已知竞态。

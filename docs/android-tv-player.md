@@ -464,6 +464,8 @@ EPG 路径与媒体路径独立：`iptv-epg` 故障只影响节目元数据，�
 6. 快速连续切换 20 次，NAS 不残留大量活动频道。
 7. 播放中按 Home、关屏、切换 HDMI 后，播放器及时释放。
 
+设备已开启并授权 ADB 后，先在仓库根目录运行 `make android-device-check`，自动完成 Debug APK 安装、TV 启动器启动和前台 Activity 确认；运行 `./scripts/verify-android-device.sh --with-tests` 可以在同一设备上先执行仪器测试。脚本通过不能替代上述遥控器、画面、解码和长时间播放观察。
+
 ### 13.3 诊断验收
 
 诊断页必须能区分：
