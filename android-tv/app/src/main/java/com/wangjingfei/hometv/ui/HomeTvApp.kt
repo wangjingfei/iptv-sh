@@ -71,6 +71,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -112,6 +113,9 @@ fun HomeTvApp(viewModel: MainViewModel) {
 private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
     var playlist by remember(state.config.playlistUrl) { mutableStateOf(state.config.playlistUrl) }
     var epg by remember(state.config.epgUrl) { mutableStateOf(state.config.epgUrl) }
+    val playlistFocus = remember { FocusRequester() }
+    val epgFocus = remember { FocusRequester() }
+    val testFocus = remember { FocusRequester() }
     Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize().padding(horizontal = 72.dp, vertical = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(0.9f)) {
@@ -129,14 +133,20 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                     onValueChange = { playlist = it; viewModel.invalidateSourceTest() },
                     label = { Text(stringResource(R.string.playlist_url)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("setup-playlist"),
+                    modifier = Modifier.fillMaxWidth()
+                        .focusRequester(playlistFocus)
+                        .focusProperties { down = epgFocus }
+                        .testTag("setup-playlist"),
                 )
                 OutlinedTextField(
                     value = epg,
                     onValueChange = { epg = it; viewModel.invalidateSourceTest() },
                     label = { Text(stringResource(R.string.xmltv_url)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("setup-epg"),
+                    modifier = Modifier.fillMaxWidth()
+                        .focusRequester(epgFocus)
+                        .focusProperties { up = playlistFocus; down = testFocus }
+                        .testTag("setup-epg"),
                 )
                 state.message?.let {
                     val messageColor = when {
@@ -149,7 +159,10 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                 Button(
                     onClick = { viewModel.testSources(playlist, epg) },
                     enabled = !state.isTestingSources && !state.isSyncing,
-                    modifier = Modifier.height(52.dp).testTag("setup-test"),
+                    modifier = Modifier.height(52.dp)
+                        .focusRequester(testFocus)
+                        .focusProperties { up = epgFocus }
+                        .testTag("setup-test"),
                 ) {
                     if (state.isTestingSources) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.CheckCircle, null)
                     Spacer(Modifier.width(10.dp))
@@ -166,6 +179,7 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
             }
         }
     }
+    LaunchedEffect(Unit) { playlistFocus.requestFocus() }
 }
 
 @Composable

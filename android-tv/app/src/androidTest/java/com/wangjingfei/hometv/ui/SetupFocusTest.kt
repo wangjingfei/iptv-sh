@@ -3,14 +3,12 @@
 package com.wangjingfei.hometv.ui
 
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.performSemanticsAction
 import com.wangjingfei.hometv.MainActivity
 import org.junit.Rule
 import org.junit.Test
@@ -22,7 +20,7 @@ class SetupFocusTest {
     @Test
     fun setupScreenSupportsDpadFocusPath() {
         composeRule.onNodeWithText("家庭电视").assertIsDisplayed()
-        composeRule.onNodeWithTag("setup-playlist").performSemanticsAction(SemanticsActions.RequestFocus)
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag("setup-playlist").assertIsFocused()
 
         composeRule.onNodeWithTag("setup-playlist").performKeyInput {

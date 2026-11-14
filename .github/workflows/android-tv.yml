@@ -88,3 +88,14 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: cd android-tv && ./gradlew connectedDebugAndroidTest
+
+      - name: Upload Android device test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-device-tests-${{ github.sha }}
+          path: |
+            android-tv/app/build/reports/androidTests/connected/
+            android-tv/app/build/outputs/androidTest-results/connected/
+          if-no-files-found: warn
+          retention-days: 14
