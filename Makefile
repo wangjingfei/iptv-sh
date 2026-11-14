@@ -1,8 +1,8 @@
-.PHONY: check live-check live-check-quick android-test android-check android-apk
+.PHONY: check live-check live-check-quick android-test android-check android-apk android-signing-check
 
 check:
 	python3 scripts/validate.py
-	sh -n router/apply-iptv.sh router/rollback.sh router/verify.sh scripts/check-secrets.sh
+	sh -n router/apply-iptv.sh router/rollback.sh router/verify.sh scripts/check-secrets.sh scripts/verify-android-signing.sh
 	./scripts/check-secrets.sh
 
 live-check:
@@ -19,3 +19,6 @@ android-check:
 
 android-apk:
 	cd android-tv && ./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
+
+android-signing-check:
+	./scripts/verify-android-signing.sh

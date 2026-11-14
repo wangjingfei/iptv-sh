@@ -70,3 +70,9 @@ export HOME_TV_KEY_PASSWORD='...'
 ```
 
 四项变量不齐全时仍可验证 R8 构建，但输出文件是 `app-release-unsigned.apk`。正式签名后需要生成 SHA-256，并在同一台物理电视上验证安装、升级和回滚。
+
+可使用一次性临时 keystore 验证 Gradle 签名配置与 APK 完整性；脚本结束后会删除临时密钥和测试签名 APK，不能把它当成正式发布包：
+
+```sh
+make android-signing-check
+```

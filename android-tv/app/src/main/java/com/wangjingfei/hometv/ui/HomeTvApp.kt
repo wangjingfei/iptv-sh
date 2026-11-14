@@ -76,6 +76,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -128,14 +129,14 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                     onValueChange = { playlist = it; viewModel.invalidateSourceTest() },
                     label = { Text(stringResource(R.string.playlist_url)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("setup-playlist"),
                 )
                 OutlinedTextField(
                     value = epg,
                     onValueChange = { epg = it; viewModel.invalidateSourceTest() },
                     label = { Text(stringResource(R.string.xmltv_url)) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("setup-epg"),
                 )
                 state.message?.let {
                     val messageColor = when {
@@ -145,7 +146,11 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                     }
                     Text(it, color = messageColor)
                 }
-                Button(onClick = { viewModel.testSources(playlist, epg) }, enabled = !state.isTestingSources && !state.isSyncing, modifier = Modifier.height(52.dp)) {
+                Button(
+                    onClick = { viewModel.testSources(playlist, epg) },
+                    enabled = !state.isTestingSources && !state.isSyncing,
+                    modifier = Modifier.height(52.dp).testTag("setup-test"),
+                ) {
                     if (state.isTestingSources) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.CheckCircle, null)
                     Spacer(Modifier.width(10.dp))
                     Text(stringResource(if (state.isTestingSources) R.string.testing_sources else R.string.test_connection))
