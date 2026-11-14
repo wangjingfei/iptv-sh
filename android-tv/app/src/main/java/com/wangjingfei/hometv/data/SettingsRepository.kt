@@ -106,6 +106,14 @@ class SettingsRepository @Inject constructor(@param:ApplicationContext private v
         Keys.epgModified,
     )
 
+    suspend fun clearEpgMetadata() {
+        context.settingsDataStore.edit {
+            it.remove(Keys.epgMetadataUrl)
+            it.remove(Keys.epgEtag)
+            it.remove(Keys.epgModified)
+        }
+    }
+
     private suspend fun setMetadata(
         url: String,
         metadata: HttpMetadata,

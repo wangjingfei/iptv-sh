@@ -83,6 +83,7 @@ class IptvRepository @Inject constructor(
 
     suspend fun clearEpg() {
         dao.deleteProgrammes()
+        settings.clearEpgMetadata()
         settings.setLastEpgSyncAt(0L)
     }
 
