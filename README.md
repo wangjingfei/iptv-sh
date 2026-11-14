@@ -1,6 +1,6 @@
 # 家庭 IPTV
 
-上海电信 IPTV 家庭内网播放方案，覆盖路由器 VLAN 85 透传、udpxy 单播、NAS 上的按需 HLS、XMLTV 节目单，以及 Android TV 播放器的后续规划。
+上海电信 IPTV 家庭内网播放方案，覆盖路由器 VLAN 85 透传、udpxy 单播、NAS 上的按需 HLS、XMLTV 节目单，以及原生 Android TV 播放器。
 
 ## 当前部署
 
@@ -35,6 +35,7 @@ make live-check
 3. 将 `docker/iptv-hls` 和 `docker/iptv-epg` 复制到 NAS 上同级的两个目录，并按照 [NAS Docker 部署](docs/nas-docker.md)操作。
 4. 在支持 XMLTV 的播放器中导入 `http://192.168.31.200:8091/playlist.m3u`；不需要节目单时，也可以继续使用 8090 端口的播放列表。
 5. 修改网络前，先参考[故障排查](docs/troubleshooting.md)中的只读检查方法。
+6. 需要电视端应用时，按照 [Android TV 客户端](android-tv/README.md)构建并侧载开发版 APK。
 
 ## 服务关系
 
@@ -46,9 +47,9 @@ make live-check
 - `docker/iptv-hls/`：当前部署的 HLS 程序、Dockerfile、Compose 配置和频道表。
 - `docker/iptv-epg/`：EPG/M3U 生成程序和 Compose 配置。
 - `docs/`：网络拓扑、操作流程、故障排查、EPG 限制和 Android TV 应用规划。
-- `android-tv/`：仅包含产品与技术设计，尚未实现 APK。
+- `android-tv/`：Kotlin/Compose、Media3、Room 和 Hilt 实现的原生电视客户端。
 
-未来电视客户端的产品、交互、架构、测试和验收基线见 [Android TV 应用详细设计](docs/android-tv-player.md)。`android-tv/` 目录专门预留给后续的 Gradle 项目；当前仍未实现 APK。
+电视客户端的产品、交互、架构、测试和验收基线见 [Android TV 应用详细设计](docs/android-tv-player.md)。当前 `0.1.0` 开发版已经通过本地单元测试和 APK 构建，但物理电视、4K、长时间播放与正式签名升级尚未验证，不能标记为最终发布版。
 
 ## 安全要求
 

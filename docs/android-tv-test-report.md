@@ -1,0 +1,49 @@
+# Android TV 开发验证记录
+
+## 当前结论
+
+`0.1.0` 开发版已经具备可重复构建的 Gradle 工程、单元测试和可侧载 Debug APK。当前结论仅覆盖本地构建与家庭网络在线接口，不等同于物理电视验收完成。
+
+## 2026-11-15 本地验证
+
+| 项目 | 结果 | 说明 |
+| --- | --- | --- |
+| Kotlin/资源/Hilt/Room 编译 | 通过 | AGP 8.13.2、Gradle 8.13、Android 36 |
+| JVM 单元测试 | 通过 | 9 项，覆盖 M3U、相对 URL、XMLTV 时区、来源限制和频道分组 |
+| Debug APK | 通过 | `com.wangjingfei.hometv.debug`，版本 `0.1.0-debug`，最低 API 23 |
+| Release 构建与 R8 压缩 | 通过 | 已生成未签名 release APK，独立签名仍待配置 |
+| 仓库静态检查 | 通过 | Python、Compose、秘密特征和 Android TV 工程结构 |
+| 当前后端快速在线检查 | 通过 | 112 个频道，抽测组播/HLS 实际播放，EPG 匹配 100/112 |
+| Android TV 模拟器 | 未执行 | 本机只剩约 1 GiB 空间，Google TV 系统镜像无法安装 |
+| 物理电视安装/启动器展示 | 未验证 | 当前 ADB 没有连接设备 |
+| 遥控器全路径 | 未验证 | 需要物理遥控器或 TV 模拟器 |
+| 普通频道与 4K 解码 | 未验证 | 依赖目标电视硬件 |
+| 连续播放 1 小时/连续换台 | 未验证 | 需要目标电视与 NAS 联合观察 |
+| release 签名、升级和回滚 | 未验证 | 尚未配置独立 release keystore |
+
+本地构建命令：
+
+```sh
+cd android-tv
+./gradlew testDebugUnitTest assembleDebug
+```
+
+家庭网络在线检查：
+
+```sh
+make live-check-quick
+```
+
+## 版本锁定原因
+
+工程使用 Android 36 和 AGP 8.13.2。2026 年最新一批 Compose/Lifecycle/Navigation/Hilt 依赖已经要求 API 37 与 AGP 9.1，因此本开发版锁定到兼容 Android 36 的版本：Compose BOM `2025.06.01`、Lifecycle `2.9.4`、Hilt `2.57.2`、Room `2.7.2`、OkHttp `4.12.0`。这不是功能降级，而是避免把未完成迁移的新构建工具混入首版。
+
+## 实机验收步骤
+
+1. 在电视开发者设置中开启网络调试，记录电视 IP。
+2. 使用 `adb connect <电视IP>:5555` 并确认授权。
+3. 安装 Debug APK，确认“家庭电视”出现在 TV 启动器中。
+4. 仅用五向键完成首次同步、分组、搜索、收藏、播放、换台、字幕和返回。
+5. 抽测一个普通频道和一个 4K 频道，记录首帧时间、缓冲与错误提示。
+6. 连续播放 1 小时，再连续换台 20 次，同时观察 NAS 的活动 FFmpeg 数量。
+7. 分别停止 EPG、HLS 和路由器 udpxy，核对诊断结论；测试后恢复服务。

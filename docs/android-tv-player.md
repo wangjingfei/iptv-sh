@@ -1,6 +1,6 @@
 # Android TV 应用详细设计
 
-> 状态：详细设计已完成，APK 和 Gradle 工程尚未实现。本文件定义 v1 产品、交互、技术架构和验收基线；实现与设计不一致时必须同步更新本文档。
+> 状态：`0.1.0` 开发版已实现并通过本地单元测试、APK 构建和当前家庭网络快速检查。物理电视、4K、长时间播放、正式签名升级尚未验证，因此仍未达到第 16 节的最终完成定义。验证明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
 
 ## 1. 产品定义
 
@@ -24,7 +24,7 @@ v1 必须做到：
 - HLS 全屏直播、上下换台、音轨和字幕选择。
 - 自动重试、诊断页、离线元数据缓存和 EPG 过期提示。
 - 适配五向遥控器、媒体键和常见数字键。
-- 生成可侧载安装的签名 APK；应用商店发布不属于 v1 必交范围。
+- 生成可侧载安装的签名 APK；当前已有调试签名 APK，独立 release 签名仍属于 v1 收尾项。应用商店发布不属于 v1 必交范围。
 
 ### 1.3 明确不做
 
@@ -337,32 +337,27 @@ WatchHistory
 
 - Kotlin。
 - 单 Activity + Compose for TV。
-- AndroidX Navigation Compose 管理页面。
+- 页面由单 Activity、单 ViewModel 状态机管理；首版页面较少，不引入 Navigation Compose。
 - AndroidX Media3 ExoPlayer、HLS 和 Session。
 - OkHttp 负责 M3U/XMLTV/诊断请求。
 - Room + DataStore 保存本地状态。
 - Kotlin Coroutines + Flow 管理异步和响应式状态。
 - 依赖注入使用 Hilt；如首个原型希望更轻，可以先构造函数注入，但正式 v1 统一到 Hilt。
-- `minSdk 23`，保证 Media3 HLS 的基础设备范围；`targetSdk` 和依赖版本在创建工程时按当期稳定版确定。
+- `minSdk 23`、`compileSdk/targetSdk 36`；AGP 8.13.2、Gradle 8.13、Kotlin 2.2.10、Media3 1.11.1、Hilt 2.57.2、Room 2.7.2。
 
 ### 9.2 模块建议
 
 ```text
-android-tv/
-├─ app/                  应用入口、导航、Manifest、主题
-├─ core:model/           Channel、Programme、SourceConfig
-├─ core:network/         M3U、XMLTV、状态接口与网络诊断
-├─ core:database/        Room、DataStore、迁移
-├─ core:player/          ExoPlayer、MediaSession、重试和轨道选择
-├─ core:ui/              TV 焦点、通用组件、排版
-├─ feature:onboarding/   首次设置
-├─ feature:live/         首页、分组、搜索、节目单
-├─ feature:player/       全屏播放器和浮层
-├─ feature:settings/     设置与诊断
-└─ benchmark/            Macrobenchmark 与 Baseline Profile
+android-tv/app/src/
+├─ main/java/.../data/    模型、M3U/XMLTV、Room、DataStore 与同步
+├─ main/java/.../player/  单一 ExoPlayer、MediaSession 与轨道选择
+├─ main/java/.../ui/      首次设置、首页、播放器、设置与诊断
+├─ main/java/.../di/      Hilt 提供数据库和网络组件
+├─ main/res/              TV banner、图标、主题和网络安全配置
+└─ test/                  M3U、XMLTV、来源限制和分组测试
 ```
 
-首个里程碑可以保留单 Gradle module，但包边界必须按上图建立；功能稳定后再物理拆分，避免一开始被多模块构建拖慢。
+首版采用单 Gradle module，并按 `data`、`player`、`ui`、`di` 建立包边界。多模块拆分、Macrobenchmark 和 Baseline Profile 留到实机性能基线明确后再做。
 
 ### 9.3 单向数据流
 

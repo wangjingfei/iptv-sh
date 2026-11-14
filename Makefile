@@ -1,4 +1,4 @@
-.PHONY: check live-check live-check-quick
+.PHONY: check live-check live-check-quick android-test android-apk
 
 check:
 	python3 scripts/validate.py
@@ -10,3 +10,9 @@ live-check:
 
 live-check-quick:
 	python3 scripts/live_check.py --skip-all-sources
+
+android-test:
+	cd android-tv && ./gradlew testDebugUnitTest
+
+android-apk:
+	cd android-tv && ./gradlew testDebugUnitTest assembleDebug

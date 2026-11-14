@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.HomeTV" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:colorAccent">@color/launcher_accent</item>
+        <item name="android:navigationBarColor">@color/launcher_background</item>
+    </style>
+</resources>

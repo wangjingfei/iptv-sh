@@ -43,9 +43,28 @@ for compose in (ROOT / "docker/iptv-hls/docker-compose.yml", ROOT / "docker/iptv
     if "services:" not in text or "restart: unless-stopped" not in text:
         fail(f"Compose 文件不完整：{compose.relative_to(ROOT)}")
 
+android_required = (
+    "android-tv/settings.gradle.kts",
+    "android-tv/gradlew",
+    "android-tv/app/build.gradle.kts",
+    "android-tv/app/src/main/AndroidManifest.xml",
+    "android-tv/app/src/main/java/com/wangjingfei/hometv/MainActivity.kt",
+    "android-tv/app/src/main/java/com/wangjingfei/hometv/ui/HomeTvApp.kt",
+    "android-tv/app/src/main/java/com/wangjingfei/hometv/data/M3uParser.kt",
+    "android-tv/app/src/main/java/com/wangjingfei/hometv/data/XmlTvParser.kt",
+)
+for relative in android_required:
+    if not (ROOT / relative).is_file():
+        fail(f"Android TV 工程缺少：{relative}")
+
+manifest = (ROOT / "android-tv/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+for marker in ("LEANBACK_LAUNCHER", "android.software.leanback", "android.hardware.touchscreen"):
+    if marker not in manifest:
+        fail(f"Android TV Manifest 缺少：{marker}")
+
 if errors:
     for error in errors:
         print(f"ERROR: {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print(f"通过：Python 语法、Compose 结构和 {len(channels)} 条频道记录")
+print(f"通过：Python 语法、Compose 结构、Android TV 工程和 {len(channels)} 条频道记录")
