@@ -487,8 +487,38 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     }
                 }
                 state.message?.let { Text(it, color = TextMuted, modifier = Modifier.padding(top = 14.dp)) }
-                Spacer(Modifier.height(26.dp))
+                Spacer(Modifier.height(22.dp))
+                Text(stringResource(R.string.playback_preferences), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = viewModel::toggleSubtitles, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                        Icon(Icons.Default.Subtitles, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(if (state.subtitlesEnabled) R.string.subtitles_default_on else R.string.subtitles_default_off))
+                    }
+                    Button(
+                        onClick = viewModel::resetAudioPreference,
+                        enabled = state.audioLabel != null,
+                        colors = ButtonDefaults.buttonColors(containerColor = PanelRaised),
+                    ) {
+                        Icon(Icons.Default.Headphones, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            state.audioLabel?.let { stringResource(R.string.audio_preference_value, it) }
+                                ?: stringResource(R.string.audio_preference_auto),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(22.dp))
                 Text(stringResource(R.string.local_data), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    stringResource(
+                        R.string.epg_last_sync,
+                        if (state.lastEpgSyncAt == 0L) stringResource(R.string.never_synced) else formatDateTime(state.lastEpgSyncAt),
+                    ),
+                    color = TextMuted,
+                    fontSize = 16.sp,
+                )
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(onClick = { confirmAction = "epg" }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
@@ -520,7 +550,7 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Text(stringResource(R.string.app_version, BuildConfig.VERSION_NAME), color = TextMuted, fontSize = 16.sp)
+                Text(stringResource(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), color = TextMuted, fontSize = 16.sp)
             }
         }
     }

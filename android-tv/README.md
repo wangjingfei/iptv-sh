@@ -17,6 +17,7 @@
 - M3U、XMLTV、EPG 健康、HLS 健康和样例频道 HLS 的诊断。
 - 解码错误启用 Media3 decoder fallback；诊断页保留最近播放错误和导入警告。
 - 支持清空节目单、最近观看和收藏，并对破坏性操作二次确认。
+- 设置页可保存默认字幕状态，并把播放中选择的音轨偏好恢复为自动。
 - Leanback 启动入口、横屏全屏、无触摸屏依赖和电视 banner。
 
 详细产品与验收基线见[《Android TV 应用详细设计》](../docs/android-tv-player.md)，当前验证结果见[《Android TV 开发验证记录》](../docs/android-tv-test-report.md)。
@@ -32,7 +33,7 @@ sdk.dir=/你的/Android/Sdk
 执行：
 
 ```sh
-./gradlew testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug
+./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug
 ```
 
 APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。安装到已开启 ADB 的电视或盒子：

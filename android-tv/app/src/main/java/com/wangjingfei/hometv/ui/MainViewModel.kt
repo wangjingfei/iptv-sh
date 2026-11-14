@@ -292,6 +292,11 @@ class MainViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(subtitlesEnabled = enabled)
         viewModelScope.launch { settings.setSubtitlesEnabled(enabled) }
     }
+    fun resetAudioPreference() {
+        playerManager.setPreferredAudioLanguage(null)
+        _uiState.value = _uiState.value.copy(audioLabel = null)
+        viewModelScope.launch { settings.setAudioLanguage(null) }
+    }
 
     fun clearEpg() = viewModelScope.launch {
         repository.clearEpg()
