@@ -10,19 +10,19 @@
 | --- | --- | --- |
 | Kotlin/资源/Hilt/Room 编译 | 通过 | AGP 8.13.2、Gradle 8.13、Android 36 |
 | JVM 单元测试 | 通过 | 24 项，覆盖 112 频道导入、14,000 条 XMLTV 性能、来源探测、解码错误策略、URL 脱敏、条件请求、损坏 XML、来源限制、分组和首页筛选 |
-| Room 迁移/事务测试 | 模拟器执行发现并修复 1 个缺陷，待复验 | 恢复收藏后未删除归档会导致未来错误恢复；现已在事务中恢复后删除当前频道归档 |
+| Room 迁移/事务测试 | 通过 | GitHub API 35 模拟器实际执行 4 项；测试曾发现收藏归档未清理缺陷，修复后已复验通过 |
 | Debug APK | 通过 | `com.wangjingfei.hometv.debug`，版本 `0.3.0-debug`，最低 API 23 |
 | Release 构建与 R8 压缩 | 通过 | 已生成未签名 release APK；已支持环境变量注入独立签名，真实升级仍待验证 |
 | 仓库静态检查 | 通过 | Python、Compose、秘密特征和 Android TV 工程结构 |
 | 当前后端快速在线检查 | 通过 | 112 个频道，抽测组播/HLS 实际播放，EPG 匹配 100/112 |
-| Android TV 模拟器 | 未执行 | 本机只剩约 1 GiB 空间，Google TV 系统镜像无法安装 |
+| 本机 Android TV 模拟器 | 未执行 | 本机只剩约 1 GiB 空间，Google TV 系统镜像无法安装；远端 API 35 模拟器测试已通过 |
 | 物理电视安装/启动器展示 | 未验证 | 当前 ADB 没有连接设备 |
 | 遥控器全路径 | 未验证 | 需要物理遥控器或 TV 模拟器 |
 | 普通频道与 4K 解码 | 未验证 | 依赖目标电视硬件 |
 | 连续播放 1 小时/连续换台 | 未验证 | 需要目标电视与 NAS 联合观察 |
 | Home/返回后的 HLS 释放与恢复 | 代码路径已实现，未实机验证 | 返回首页和进入后台会停止播放器；回到仍打开的播放页会恢复当前频道 |
 | 初次来源测试流程 | 单元与服务测试通过，未实机验证 | 测试 M3U、XMLTV 和真实 HLS 样例后才允许应用来源；修改输入会使旧测试失效 |
-| GitHub Actions 自动构建 | build job 已通过，仪器测试修复待复验 | 远端已生成并上传 APK；API 35 模拟器实际执行 4 项测试并发现收藏归档缺陷 |
+| GitHub Actions 自动构建 | 通过 | 运行 `43625556028` 的 build 与 instrumentation 作业均通过，已上传约 27.3 MB 的 APK 制品 |
 | release 签名、升级和回滚 | 未验证 | 尚未配置独立 release keystore |
 
 本地构建命令：
@@ -58,4 +58,4 @@ make live-check-quick
 ./gradlew connectedDebugAndroidTest
 ```
 
-GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。首次推送后应检查该工作流的真实运行结果；工作流文件存在本身不等于远端门禁已通过。
+GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43625556028`：完整构建和 API 35 模拟器测试均通过，并成功上传 APK 制品；后续提交仍以各自运行结果为准。
