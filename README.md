@@ -49,7 +49,7 @@ make live-check
 - `docs/`：网络拓扑、操作流程、故障排查、EPG 限制和 Android TV 应用规划。
 - `android-tv/`：Kotlin/Compose、Media3、Room 和 Hilt 实现的原生电视客户端。
 
-电视客户端的产品、交互、架构、测试和验收基线见 [Android TV 应用详细设计](docs/android-tv-player.md)。当前 `0.2.0` 开发版已经通过本地单元测试和 APK 构建，但物理电视、4K、长时间播放与正式签名升级尚未验证，不能标记为最终发布版。
+电视客户端的产品、交互、架构、测试和验收基线见 [Android TV 应用详细设计](docs/android-tv-player.md)。当前 `0.3.0` 开发版已经通过本地单元测试和 APK 构建，但物理电视、4K、长时间播放与正式签名升级尚未验证，不能标记为最终发布版。
 
 ## 安全要求
 

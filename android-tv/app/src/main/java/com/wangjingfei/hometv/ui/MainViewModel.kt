@@ -14,10 +14,17 @@ import com.wangjingfei.hometv.data.NetworkMonitor
 import com.wangjingfei.hometv.data.Programme
 import com.wangjingfei.hometv.data.SettingsRepository
 import com.wangjingfei.hometv.data.SourceConfig
+import com.wangjingfei.hometv.data.SourceProbe
+import com.wangjingfei.hometv.data.networkOrigin
 import com.wangjingfei.hometv.player.PlayerManager
+import com.wangjingfei.hometv.player.PlaybackErrorPolicy
+import com.wangjingfei.hometv.player.PlaybackFailure
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import java.net.URI
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +55,11 @@ data class MainUiState(
     val lastChannelId: String? = null,
     val lastEpgSyncAt: Long = 0L,
     val showBuffering: Boolean = false,
+    val lastPlaybackFailure: PlaybackFailure? = null,
+    val lastPlaybackFailureAt: Long = 0L,
+    val lastSyncWarning: String? = null,
+    val isTestingSources: Boolean = false,
+    val testedSource: SourceProbe? = null,
 ) {
     val groups: List<String> get() = listOf("全部", "收藏", "最近") + channels.map { it.group }.distinct()
     val visibleChannels: List<Channel> get() {
@@ -86,7 +98,13 @@ class MainViewModel @Inject constructor(
     init {
         playerManager.player.addListener(this)
         viewModelScope.launch {
-            settings.config.collect { config -> _uiState.value = _uiState.value.copy(config = config) }
+            settings.config.collect { config ->
+                val current = _uiState.value
+                _uiState.value = current.copy(
+                    config = config,
+                    screen = if (config.setupComplete && current.channels.isNotEmpty() && current.screen == AppScreen.SETUP) AppScreen.HOME else current.screen,
+                )
+            }
         }
         viewModelScope.launch {
             settings.lastChannelId.collect { _uiState.value = _uiState.value.copy(lastChannelId = it) }
@@ -111,7 +129,7 @@ class MainViewModel @Inject constructor(
                 val current = _uiState.value
                 _uiState.value = current.copy(
                     channels = channels,
-                    screen = if (channels.isNotEmpty() && current.screen == AppScreen.SETUP) AppScreen.HOME else current.screen,
+                    screen = if (channels.isNotEmpty() && current.config.setupComplete && current.screen == AppScreen.SETUP) AppScreen.HOME else current.screen,
                 )
             }
         }
@@ -125,11 +143,45 @@ class MainViewModel @Inject constructor(
             delay(250)
             val config = settings.config.first()
             val stale = System.currentTimeMillis() - settings.lastSyncAt.first() >= REFRESH_INTERVAL_MS
-            if (repository.channels.first().isEmpty() || stale) sync(config.playlistUrl, config.epgUrl)
+            if (config.setupComplete && (repository.channels.first().isEmpty() || stale)) sync(config.playlistUrl, config.epgUrl)
             while (true) {
                 delay(REFRESH_INTERVAL_MS)
-                sync()
+                if (settings.config.first().setupComplete) sync()
             }
+        }
+    }
+
+    fun testSources(playlistUrl: String, epgUrl: String) {
+        if (_uiState.value.isTestingSources || _uiState.value.isSyncing) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isTestingSources = true, testedSource = null, message = null)
+            runCatching { repository.probe(playlistUrl, epgUrl) }
+                .onSuccess { probe ->
+                    val epgSummary = probe.programmeCount?.let { "，节目单 $it 条" } ?: "，节目单不可用或未配置"
+                    _uiState.value = _uiState.value.copy(
+                        isTestingSources = false,
+                        testedSource = probe,
+                        message = probe.warning ?: "测试通过：${probe.channelCount} 个频道$epgSummary，样例 HLS 可播放",
+                    )
+                }
+                .onFailure {
+                    _uiState.value = _uiState.value.copy(
+                        isTestingSources = false,
+                        testedSource = null,
+                        message = it.message ?: "来源测试失败",
+                    )
+                }
+        }
+    }
+
+    fun applyTestedSource() {
+        val probe = _uiState.value.testedSource ?: return
+        sync(probe.playlistUrl, probe.resolvedEpgUrl)
+    }
+
+    fun invalidateSourceTest() {
+        if (_uiState.value.testedSource != null) {
+            _uiState.value = _uiState.value.copy(testedSource = null, message = null)
         }
     }
 
@@ -149,6 +201,7 @@ class MainViewModel @Inject constructor(
                         isSyncing = false,
                         screen = AppScreen.HOME,
                         message = it.warning ?: syncMessage,
+                        lastSyncWarning = it.warning,
                     )
                 }
                 .onFailure {
@@ -258,14 +311,12 @@ class MainViewModel @Inject constructor(
     fun runDiagnostics(playlistUrl: String = _uiState.value.config.playlistUrl, epgUrl: String = _uiState.value.config.epgUrl) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(diagnostics = listOf(DiagnosticItem("检查中", DiagnosticStatus.CHECKING, "正在访问局域网服务")))
-            val hlsHealth = runCatching {
-                val uri = URI(playlistUrl)
-                "${uri.scheme}://${uri.host}:8090/healthz"
-            }.getOrDefault("http://192.168.31.200:8090/healthz")
-            val epgHealth = runCatching {
-                val uri = URI(epgUrl)
-                "${uri.scheme}://${uri.host}${if (uri.port > 0) ":${uri.port}" else ""}/healthz"
-            }.getOrDefault("http://192.168.31.200:8091/healthz")
+            val hlsHealth = (_uiState.value.channels.firstOrNull()?.streamUrl?.let(::networkOrigin)
+                ?: networkOrigin(playlistUrl)
+                ?: "http://192.168.31.200:8090") + "/healthz"
+            val epgHealth = (networkOrigin(epgUrl)
+                ?: networkOrigin(playlistUrl)
+                ?: "http://192.168.31.200:8091") + "/healthz"
             val epgStatus = epgHealth.substringBeforeLast('/') + "/status.json"
             val results = mutableListOf(
                 networkMonitor.diagnose(),
@@ -275,6 +326,17 @@ class MainViewModel @Inject constructor(
                 repository.checkUrl("EPG 状态", epgStatus),
                 repository.checkUrl("HLS 服务", hlsHealth),
             )
+            _uiState.value.lastSyncWarning?.let {
+                results += DiagnosticItem("最近导入警告", DiagnosticStatus.WARNING, it)
+            }
+            _uiState.value.lastPlaybackFailure?.let {
+                val channelName = _uiState.value.selectedChannel?.name ?: "未知频道"
+                results += DiagnosticItem(
+                    "最近播放错误",
+                    DiagnosticStatus.ERROR,
+                    "$channelName，${DIAGNOSTIC_TIME_FORMAT.format(Instant.ofEpochMilli(_uiState.value.lastPlaybackFailureAt))}：${it.detail}",
+                )
+            }
             _uiState.value.channels.firstOrNull()?.let {
                 results += repository.checkUrl("样例频道 HLS", it.streamUrl)
             }
@@ -309,22 +371,23 @@ class MainViewModel @Inject constructor(
     }
 
     override fun onPlayerError(error: PlaybackException) {
-        val httpStatus = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
-        val conclusion = when {
-            httpStatus == 404 -> "频道配置已失效"
-            httpStatus == 502 || httpStatus == 503 -> "NAS 正在启动频道或媒体服务异常"
-            error.errorCodeName.contains("DECOD", ignoreCase = true) -> "电视不支持该频道的媒体编码"
-            error.errorCodeName.contains("NETWORK", ignoreCase = true) || error.errorCodeName.contains("TIMEOUT", ignoreCase = true) -> "电视无法连接直播服务"
-            else -> "播放失败"
-        }
-        val detail = "$conclusion（${error.errorCodeName}）：${error.message ?: "无更多信息"}"
-        _uiState.value = _uiState.value.copy(playbackError = detail, controlsVisible = true)
-        if (httpStatus != 404 && retryCount < 3) {
-            val delayMillis = listOf(1_000L, 2_000L, 4_000L)[retryCount]
+        val httpStatus = generateSequence(error as Throwable) { it.cause }
+            .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+            .firstOrNull()
+            ?.responseCode
+        val failure = PlaybackErrorPolicy.classify(error.errorCodeName, httpStatus, error.message)
+        _uiState.value = _uiState.value.copy(
+            playbackError = failure.detail,
+            controlsVisible = true,
+            lastPlaybackFailure = failure,
+            lastPlaybackFailureAt = System.currentTimeMillis(),
+        )
+        if (retryCount < failure.retryDelaysMillis.size) {
+            val delayMillis = failure.retryDelaysMillis[retryCount]
             retryCount += 1
             retryJob?.cancel()
             retryJob = viewModelScope.launch {
-                _uiState.value = _uiState.value.copy(playbackError = "$detail；${delayMillis / 1000} 秒后第 $retryCount/3 次重试")
+                _uiState.value = _uiState.value.copy(playbackError = "${failure.detail}；${delayMillis / 1000} 秒后第 $retryCount/${failure.retryDelaysMillis.size} 次重试")
                 delay(delayMillis)
                 playerManager.retry()
             }
@@ -342,5 +405,7 @@ class MainViewModel @Inject constructor(
 
     private companion object {
         const val REFRESH_INTERVAL_MS = 6 * 60 * 60_000L
+        val DIAGNOSTIC_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(ZoneId.systemDefault())
     }
 }

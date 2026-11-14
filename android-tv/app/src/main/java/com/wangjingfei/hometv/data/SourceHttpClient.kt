@@ -20,9 +20,10 @@ class SourceHttpClient @Inject constructor(private val client: OkHttpClient) {
         }.build()
         return client.newCall(request).execute().use { response ->
             if (response.code == 304) return@use DownloadedText(null, metadata)
-            if (!response.isSuccessful) throw IOException("$url 返回 HTTP ${response.code}")
-            val body = response.body?.string()?.ifBlank { throw IOException("$url 返回空内容") }
-                ?: throw IOException("$url 没有响应体")
+            val origin = networkOrigin(url) ?: "来源服务"
+            if (!response.isSuccessful) throw IOException("$origin 返回 HTTP ${response.code}")
+            val body = response.body?.string()?.ifBlank { throw IOException("$origin 返回空内容") }
+                ?: throw IOException("$origin 没有响应体")
             DownloadedText(
                 body,
                 HttpMetadata(

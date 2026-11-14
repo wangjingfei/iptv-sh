@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.session.MediaSession
@@ -24,6 +25,7 @@ class PlayerManager @Inject constructor(@ApplicationContext context: Context) {
         .setReadTimeoutMs(15_000)
         .setAllowCrossProtocolRedirects(false)
     val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setRenderersFactory(DefaultRenderersFactory(context).setEnableDecoderFallback(true))
         .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactory))
         .build()
         .apply {

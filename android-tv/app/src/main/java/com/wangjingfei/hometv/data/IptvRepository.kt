@@ -19,10 +19,14 @@ class IptvRepository @Inject constructor(
     private val validator: SourceValidator,
     private val settings: SettingsRepository,
     private val sourceHttpClient: SourceHttpClient,
+    private val sourceProbeService: SourceProbeService,
 ) {
     val channels: Flow<List<Channel>> = dao.observeChannels().map { rows -> rows.map(ChannelEntity::toModel) }
     fun programmes(from: Long, to: Long): Flow<List<Programme>> =
         dao.observeProgrammes(from, to).map { rows -> rows.map(ProgrammeEntity::toModel) }
+
+    suspend fun probe(playlistUrl: String, configuredEpgUrl: String): SourceProbe =
+        withContext(Dispatchers.IO) { sourceProbeService.probe(playlistUrl, configuredEpgUrl) }
 
     suspend fun sync(playlistUrl: String, configuredEpgUrl: String): SyncResult = withContext(Dispatchers.IO) {
         validator.validate(playlistUrl).getOrThrow()
@@ -30,21 +34,11 @@ class IptvRepository @Inject constructor(
         val playlistDownload = sourceHttpClient.download(playlistUrl, settings.playlistMetadata(playlistUrl))
         val playlist = playlistDownload.body?.let { m3uParser.parse(it, playlistUrl) }
         val importWarnings = playlist?.warnings?.toMutableList() ?: mutableListOf()
-        val channels = playlist?.channels?.filter { channel ->
-            validator.validate(channel.streamUrl).fold(
-                onSuccess = { true },
-                onFailure = {
-                    importWarnings += "频道 ${channel.name} 的流地址不安全或无效，已跳过：${it.message}"
-                    false
-                },
-            )
-        } ?: previous.values.sortedBy { it.channelNumber }.map(ChannelEntity::toModel)
+        val channels = playlist?.let { sourceProbeService.filterChannels(it.channels, importWarnings) }
+            ?: previous.values.sortedBy { it.channelNumber }.map(ChannelEntity::toModel)
         require(channels.isNotEmpty()) { "播放列表中没有安全且有效的频道" }
         if (previous.isEmpty()) {
-            val sampleHls = sourceHttpClient.download(channels.first().streamUrl).body.orEmpty()
-            require(sampleHls.lineSequence().firstOrNull()?.trim() == "#EXTM3U") {
-                "样例频道没有返回有效的 HLS 播放列表"
-            }
+            sourceProbeService.validateSampleHls(channels.first())
         }
         val epgUrl = configuredEpgUrl.ifBlank { playlist?.epgUrl.orEmpty() }
         val now = System.currentTimeMillis()

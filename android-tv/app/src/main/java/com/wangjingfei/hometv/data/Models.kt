@@ -30,6 +30,18 @@ data class SourceConfig(
     val setupComplete: Boolean,
 )
 
+data class SourceProbe(
+    val playlistUrl: String,
+    val requestedEpgUrl: String,
+    val resolvedEpgUrl: String,
+    val channelCount: Int,
+    val programmeCount: Int?,
+    val warning: String? = null,
+) {
+    fun matches(playlistUrl: String, epgUrl: String): Boolean =
+        this.playlistUrl == playlistUrl.trim() && requestedEpgUrl == epgUrl.trim()
+}
+
 enum class DiagnosticStatus { CHECKING, OK, WARNING, ERROR }
 
 data class DiagnosticItem(

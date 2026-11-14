@@ -125,23 +125,37 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
             Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
                     value = playlist,
-                    onValueChange = { playlist = it },
+                    onValueChange = { playlist = it; viewModel.invalidateSourceTest() },
                     label = { Text(stringResource(R.string.playlist_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = epg,
-                    onValueChange = { epg = it },
+                    onValueChange = { epg = it; viewModel.invalidateSourceTest() },
                     label = { Text(stringResource(R.string.xmltv_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                state.message?.let { Text(it, color = if (state.channels.isEmpty()) ErrorRed else Mint) }
-                Button(onClick = { viewModel.sync(playlist, epg) }, enabled = !state.isSyncing, modifier = Modifier.height(52.dp)) {
-                    if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, null)
+                state.message?.let {
+                    val messageColor = when {
+                        state.testedSource == null -> ErrorRed
+                        state.testedSource.warning != null -> Warm
+                        else -> Mint
+                    }
+                    Text(it, color = messageColor)
+                }
+                Button(onClick = { viewModel.testSources(playlist, epg) }, enabled = !state.isTestingSources && !state.isSyncing, modifier = Modifier.height(52.dp)) {
+                    if (state.isTestingSources) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.CheckCircle, null)
                     Spacer(Modifier.width(10.dp))
-                    Text(stringResource(if (state.isSyncing) R.string.connecting else R.string.connect_and_sync))
+                    Text(stringResource(if (state.isTestingSources) R.string.testing_sources else R.string.test_connection))
+                }
+                if (state.testedSource?.matches(playlist, epg) == true) {
+                    Button(onClick = viewModel::applyTestedSource, enabled = !state.isSyncing, modifier = Modifier.height(52.dp)) {
+                        if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.LiveTv, null)
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.save_and_enter))
+                    }
                 }
                 if (state.channels.isNotEmpty()) Button(onClick = viewModel::openHome) { Text(stringResource(R.string.use_cache)) }
             }
@@ -174,6 +188,15 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
             if (state.lastEpgSyncAt == 0L || System.currentTimeMillis() - state.lastEpgSyncAt > 12 * 60 * 60_000L) {
                 Text(stringResource(R.string.epg_stale), color = Warm, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp))
             }
+            Text(
+                stringResource(
+                    R.string.epg_last_sync,
+                    if (state.lastEpgSyncAt == 0L) stringResource(R.string.never_synced) else formatDateTime(state.lastEpgSyncAt),
+                ),
+                color = TextMuted,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(top = 4.dp),
+            )
             Spacer(Modifier.height(20.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(state.groups) { group ->
@@ -444,16 +467,23 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.sources_and_sync), fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(24.dp))
-                OutlinedTextField(playlist, { playlist = it }, label = { Text(stringResource(R.string.playlist_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(playlist, { playlist = it; viewModel.invalidateSourceTest() }, label = { Text(stringResource(R.string.playlist_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(14.dp))
-                OutlinedTextField(epg, { epg = it }, label = { Text(stringResource(R.string.xmltv_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(epg, { epg = it; viewModel.invalidateSourceTest() }, label = { Text(stringResource(R.string.xmltv_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(18.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = { viewModel.sync(playlist, epg) }, enabled = !state.isSyncing) {
-                        Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.save_and_sync))
+                    Button(onClick = { viewModel.testSources(playlist, epg) }, enabled = !state.isTestingSources && !state.isSyncing) {
+                        if (state.isTestingSources) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Icon(Icons.Default.CheckCircle, null)
+                        Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.test_connection))
                     }
                     Button(onClick = { viewModel.runDiagnostics(playlist, epg) }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
                         Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.run_diagnostics))
+                    }
+                }
+                if (state.testedSource?.matches(playlist, epg) == true) {
+                    Spacer(Modifier.height(10.dp))
+                    Button(onClick = viewModel::applyTestedSource, enabled = !state.isSyncing) {
+                        Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.apply_tested_source))
                     }
                 }
                 state.message?.let { Text(it, color = TextMuted, modifier = Modifier.padding(top = 14.dp)) }
@@ -523,3 +553,11 @@ private fun ConfirmDialog(title: String, detail: String, onConfirm: () -> Unit, 
 
 @Composable
 private fun formatTime(epochMillis: Long): String = android.text.format.DateFormat.getTimeFormat(LocalContext.current).format(Date(epochMillis))
+
+@Composable
+private fun formatDateTime(epochMillis: Long): String {
+    val context = LocalContext.current
+    val date = android.text.format.DateFormat.getMediumDateFormat(context).format(Date(epochMillis))
+    val time = android.text.format.DateFormat.getTimeFormat(context).format(Date(epochMillis))
+    return "$date $time"
+}

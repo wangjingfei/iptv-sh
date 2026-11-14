@@ -6,10 +6,16 @@
     <string name="xmltv_url">XMLTV URL</string>
     <string name="connecting">正在连接</string>
     <string name="connect_and_sync">连接并同步</string>
+    <string name="testing_sources">正在测试</string>
+    <string name="test_connection">测试连接</string>
+    <string name="save_and_enter">保存并进入直播</string>
+    <string name="apply_tested_source">应用已测试来源</string>
     <string name="use_cache">使用本地缓存进入</string>
     <string name="sync">同步</string>
     <string name="settings">设置</string>
     <string name="epg_stale">节目单已过期，直播仍可正常使用</string>
+    <string name="epg_last_sync">节目单缓存：%1$s</string>
+    <string name="never_synced">从未成功同步</string>
     <string name="group_empty">这个分组暂无频道</string>
     <string name="search_empty">没有匹配的频道</string>
     <string name="clear">清除</string>

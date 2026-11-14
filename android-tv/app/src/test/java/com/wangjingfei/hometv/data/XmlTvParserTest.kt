@@ -2,6 +2,9 @@ package com.wangjingfei.hometv.data
 
 import com.google.common.truth.Truth.assertThat
 import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import org.junit.Test
 
 class XmlTvParserTest {
@@ -46,5 +49,35 @@ class XmlTvParserTest {
         assertThat(programmes).hasSize(2)
         assertThat(programmes[0].stopAt).isEqualTo(programmes[1].startAt)
         assertThat(programmes[1].stopAt).isNull()
+    }
+
+    @Test(expected = org.xml.sax.SAXParseException::class)
+    fun rejectsDamagedXmlInsteadOfReturningPartialData() {
+        XmlTvParser().parse("<tv><programme", Long.MIN_VALUE, Long.MAX_VALUE)
+    }
+
+    @Test(timeout = 5_000)
+    fun parsesFourteenThousandProgrammesWithinPerformanceBudget() {
+        val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss Z")
+        val start = OffsetDateTime.of(2026, 11, 15, 0, 0, 0, 0, ZoneOffset.ofHours(8))
+        val xml = buildString {
+            append("<tv>")
+            repeat(14_000) { index ->
+                val programmeStart = start.plusMinutes(index.toLong())
+                append("<programme channel=\"c\" start=\"")
+                append(programmeStart.format(formatter))
+                append("\" stop=\"")
+                append(programmeStart.plusMinutes(1).format(formatter))
+                append("\"><title>节目")
+                append(index)
+                append("</title></programme>")
+            }
+            append("</tv>")
+        }
+
+        val result = XmlTvParser().parse(xml, Long.MIN_VALUE, Long.MAX_VALUE)
+
+        assertThat(result).hasSize(14_000)
+        assertThat(result.last().title).isEqualTo("节目13999")
     }
 }

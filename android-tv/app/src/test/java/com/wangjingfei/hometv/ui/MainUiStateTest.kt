@@ -3,6 +3,7 @@ package com.wangjingfei.hometv.ui
 import com.google.common.truth.Truth.assertThat
 import com.wangjingfei.hometv.data.Channel
 import com.wangjingfei.hometv.data.Programme
+import com.wangjingfei.hometv.data.SourceProbe
 import org.junit.Test
 
 class MainUiStateTest {
@@ -33,5 +34,14 @@ class MainUiStateTest {
         assertThat(state.currentProgramme("a", 150)?.title).isEqualTo("当前")
         assertThat(state.nextProgramme("a", 150)?.title).isEqualTo("下一档")
         assertThat(state.currentProgramme("b", 150)?.title).isEqualTo("未知结束时间")
+    }
+
+    @Test
+    fun testedSourceOnlyMatchesUnchangedInput() {
+        val probe = SourceProbe("http://192.168.1.2/list.m3u", "", "http://192.168.1.2/epg.xml", 10, 20)
+
+        assertThat(probe.matches(" http://192.168.1.2/list.m3u ", "")).isTrue()
+        assertThat(probe.matches("http://192.168.1.3/list.m3u", "")).isFalse()
+        assertThat(probe.matches("http://192.168.1.2/list.m3u", "http://192.168.1.2/epg.xml")).isFalse()
     }
 }

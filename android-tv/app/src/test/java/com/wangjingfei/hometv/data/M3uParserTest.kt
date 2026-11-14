@@ -70,4 +70,21 @@ class M3uParserTest {
         assertThat(result.channels.map { it.id }).containsExactly("ok")
         assertThat(result.warnings.single()).contains("名称为空")
     }
+
+    @Test
+    fun importsCurrentScaleOf112Channels() {
+        val content = buildString {
+            appendLine("#EXTM3U")
+            repeat(112) { index ->
+                appendLine("#EXTINF:-1 tvg-id=\"channel-$index\" tvg-name=\"频道$index\",频道$index")
+                appendLine("http://192.168.31.200:8090/channel-$index/index.m3u8")
+            }
+        }
+
+        val result = parser.parse(content)
+
+        assertThat(result.channels).hasSize(112)
+        assertThat(result.channels.last().number).isEqualTo(112)
+        assertThat(result.warnings).isEmpty()
+    }
 }
