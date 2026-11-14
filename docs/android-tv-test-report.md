@@ -22,7 +22,7 @@
 | 连续播放 1 小时/连续换台 | 未验证 | 需要目标电视与 NAS 联合观察 |
 | Home/返回后的 HLS 释放与恢复 | 代码路径已实现，未实机验证 | 返回首页和进入后台会停止播放器；回到仍打开的播放页会恢复当前频道 |
 | 初次来源测试流程 | 单元与服务测试通过，未实机验证 | 测试 M3U、XMLTV 和真实 HLS 样例后才允许应用来源；修改输入会使旧测试失效 |
-| GitHub Actions 自动构建 | 已配置，待首次远端运行 | push/PR 上构建 APK，并在 Android TV API 35 模拟器实际执行 Room 迁移/事务测试 |
+| GitHub Actions 自动构建 | 首次运行失败，已修复待复验 | build job 的 SDK 路径和不存在的 Android TV API 35 镜像已改正；Room 测试改在 Google APIs API 35 模拟器执行 |
 | release 签名、升级和回滚 | 未验证 | 尚未配置独立 release keystore |
 
 本地构建命令：
