@@ -70,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -77,6 +78,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -115,7 +117,7 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
     var epg by remember(state.config.epgUrl) { mutableStateOf(state.config.epgUrl) }
     val playlistFocus = remember { FocusRequester() }
     val epgFocus = remember { FocusRequester() }
-    val testFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
     Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize().padding(horizontal = 72.dp, vertical = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(0.9f)) {
@@ -154,12 +156,12 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                             if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
                             when (event.nativeKeyEvent.keyCode) {
                                 KeyEvent.KEYCODE_DPAD_UP -> { playlistFocus.requestFocus(); true }
-                                KeyEvent.KEYCODE_DPAD_DOWN -> { testFocus.requestFocus(); true }
+                                KeyEvent.KEYCODE_DPAD_DOWN -> focusManager.moveFocus(FocusDirection.Down)
                                 else -> false
                             }
                         }
                         .focusRequester(epgFocus)
-                        .focusProperties { up = playlistFocus; down = testFocus }
+                        .focusProperties { up = playlistFocus }
                         .testTag("setup-epg"),
                 )
                 state.message?.let {
@@ -174,7 +176,6 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                     onClick = { viewModel.testSources(playlist, epg) },
                     enabled = !state.isTestingSources && !state.isSyncing,
                     modifier = Modifier.height(52.dp)
-                        .focusRequester(testFocus)
                         .focusProperties { up = epgFocus }
                         .testTag("setup-test"),
                 ) {
