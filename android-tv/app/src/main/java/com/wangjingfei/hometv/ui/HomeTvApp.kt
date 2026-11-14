@@ -134,6 +134,12 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                     label = { Text(stringResource(R.string.playlist_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
+                        .onPreviewKeyEvent { event ->
+                            if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN && event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                                epgFocus.requestFocus()
+                                true
+                            } else false
+                        }
                         .focusRequester(playlistFocus)
                         .focusProperties { down = epgFocus }
                         .testTag("setup-playlist"),
@@ -144,6 +150,14 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                     label = { Text(stringResource(R.string.xmltv_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
+                        .onPreviewKeyEvent { event ->
+                            if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                            when (event.nativeKeyEvent.keyCode) {
+                                KeyEvent.KEYCODE_DPAD_UP -> { playlistFocus.requestFocus(); true }
+                                KeyEvent.KEYCODE_DPAD_DOWN -> { testFocus.requestFocus(); true }
+                                else -> false
+                            }
+                        }
                         .focusRequester(epgFocus)
                         .focusProperties { up = playlistFocus; down = testFocus }
                         .testTag("setup-epg"),
