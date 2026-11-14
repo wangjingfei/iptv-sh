@@ -90,6 +90,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import androidx.tv.material3.Button as TvButton
 import com.wangjingfei.hometv.BuildConfig
 import com.wangjingfei.hometv.R
 import com.wangjingfei.hometv.data.Channel
@@ -172,7 +173,7 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                     }
                     Text(it, color = messageColor)
                 }
-                Button(
+                TvButton(
                     onClick = { viewModel.testSources(playlist, epg) },
                     enabled = !state.isTestingSources && !state.isSyncing,
                     modifier = Modifier.height(52.dp)
