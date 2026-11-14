@@ -10,6 +10,7 @@ import com.wangjingfei.hometv.data.Channel
 import com.wangjingfei.hometv.data.DiagnosticItem
 import com.wangjingfei.hometv.data.DiagnosticStatus
 import com.wangjingfei.hometv.data.IptvRepository
+import com.wangjingfei.hometv.data.NetworkMonitor
 import com.wangjingfei.hometv.data.Programme
 import com.wangjingfei.hometv.data.SettingsRepository
 import com.wangjingfei.hometv.data.SourceConfig
@@ -42,8 +43,11 @@ data class MainUiState(
     val playbackState: Int = Player.STATE_IDLE,
     val playbackError: String? = null,
     val diagnostics: List<DiagnosticItem> = emptyList(),
-    val audioLabel: String = "默认音轨",
+    val audioLabel: String? = null,
     val subtitlesEnabled: Boolean = true,
+    val lastChannelId: String? = null,
+    val lastEpgSyncAt: Long = 0L,
+    val showBuffering: Boolean = false,
 ) {
     val groups: List<String> get() = listOf("全部", "收藏", "最近") + channels.map { it.group }.distinct()
     val visibleChannels: List<Channel> get() {
@@ -57,7 +61,7 @@ data class MainUiState(
     }
 
     fun currentProgramme(channelId: String, now: Long = System.currentTimeMillis()): Programme? =
-        programmes.firstOrNull { it.channelId == channelId && it.startAt <= now && it.stopAt > now }
+        programmes.firstOrNull { it.channelId == channelId && it.startAt <= now && (it.stopAt == null || it.stopAt > now) }
 
     fun nextProgramme(channelId: String, now: Long = System.currentTimeMillis()): Programme? =
         programmes.firstOrNull { it.channelId == channelId && it.startAt > now }
@@ -68,6 +72,7 @@ class MainViewModel @Inject constructor(
     private val repository: IptvRepository,
     private val settings: SettingsRepository,
     val playerManager: PlayerManager,
+    private val networkMonitor: NetworkMonitor,
 ) : ViewModel(), Player.Listener {
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -75,12 +80,31 @@ class MainViewModel @Inject constructor(
     private var numericJob: Job? = null
     private var switchJob: Job? = null
     private var retryJob: Job? = null
+    private var bufferingJob: Job? = null
     private var retryCount = 0
 
     init {
         playerManager.player.addListener(this)
         viewModelScope.launch {
             settings.config.collect { config -> _uiState.value = _uiState.value.copy(config = config) }
+        }
+        viewModelScope.launch {
+            settings.lastChannelId.collect { _uiState.value = _uiState.value.copy(lastChannelId = it) }
+        }
+        viewModelScope.launch {
+            settings.lastEpgSyncAt.collect { _uiState.value = _uiState.value.copy(lastEpgSyncAt = it) }
+        }
+        viewModelScope.launch {
+            settings.subtitlesEnabled.collect {
+                playerManager.setSubtitlesEnabled(it)
+                _uiState.value = _uiState.value.copy(subtitlesEnabled = it)
+            }
+        }
+        viewModelScope.launch {
+            settings.audioLanguage.collect {
+                playerManager.setPreferredAudioLanguage(it)
+                _uiState.value = _uiState.value.copy(audioLabel = it)
+            }
         }
         viewModelScope.launch {
             repository.channels.collect { channels ->
@@ -99,7 +123,13 @@ class MainViewModel @Inject constructor(
         }
         viewModelScope.launch {
             delay(250)
-            if (repository.channels.first().isEmpty()) sync(_uiState.value.config.playlistUrl, _uiState.value.config.epgUrl)
+            val config = settings.config.first()
+            val stale = System.currentTimeMillis() - settings.lastSyncAt.first() >= REFRESH_INTERVAL_MS
+            if (repository.channels.first().isEmpty() || stale) sync(config.playlistUrl, config.epgUrl)
+            while (true) {
+                delay(REFRESH_INTERVAL_MS)
+                sync()
+            }
         }
     }
 
@@ -109,19 +139,33 @@ class MainViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isSyncing = true, message = null)
             runCatching { repository.sync(playlistUrl.trim(), epgUrl.trim()) }
                 .onSuccess {
+                    val syncMessage = when {
+                        it.playlistUpdated && it.epgUpdated -> "已同步 ${it.channelCount} 个频道、${it.programmeCount} 条节目"
+                        it.playlistUpdated -> "已更新 ${it.channelCount} 个频道，节目单无变化"
+                        it.epgUpdated -> "频道列表无变化，已更新 ${it.programmeCount} 条节目"
+                        else -> "已检查 ${it.channelCount} 个频道，数据均为最新"
+                    }
                     _uiState.value = _uiState.value.copy(
                         isSyncing = false,
                         screen = AppScreen.HOME,
-                        message = it.warning ?: "已同步 ${it.channelCount} 个频道、${it.programmeCount} 条节目",
+                        message = it.warning ?: syncMessage,
                     )
                 }
                 .onFailure {
-                    _uiState.value = _uiState.value.copy(isSyncing = false, screen = AppScreen.SETUP, message = it.message ?: "同步失败")
+                    val cached = _uiState.value.channels.isNotEmpty()
+                    _uiState.value = _uiState.value.copy(
+                        isSyncing = false,
+                        screen = if (cached) _uiState.value.screen else AppScreen.SETUP,
+                        message = it.message ?: "同步失败",
+                    )
                 }
         }
     }
 
-    fun openHome() { _uiState.value = _uiState.value.copy(screen = AppScreen.HOME, controlsVisible = false) }
+    fun openHome() {
+        if (_uiState.value.screen == AppScreen.PLAYER) playerManager.stop()
+        _uiState.value = _uiState.value.copy(screen = AppScreen.HOME, controlsVisible = false)
+    }
     fun openSettings() { _uiState.value = _uiState.value.copy(screen = AppScreen.SETTINGS) }
     fun selectGroup(group: String) { _uiState.value = _uiState.value.copy(selectedGroup = group) }
     fun setSearch(query: String) { _uiState.value = _uiState.value.copy(searchQuery = query) }
@@ -168,6 +212,8 @@ class MainViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(controlsVisible = true)
         scheduleControlsHide()
     }
+    fun holdControls() { controlsJob?.cancel() }
+    fun resumeControlsTimeout() { if (_uiState.value.controlsVisible) scheduleControlsHide() }
     fun hideControls() { _uiState.value = _uiState.value.copy(controlsVisible = false) }
 
     fun enterDigit(digit: Int) {
@@ -183,8 +229,31 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun cycleAudio() { _uiState.value = _uiState.value.copy(audioLabel = playerManager.cycleAudioLanguage()) }
-    fun toggleSubtitles() { _uiState.value = _uiState.value.copy(subtitlesEnabled = playerManager.toggleSubtitles()) }
+    fun cycleAudio() {
+        val language = playerManager.cycleAudioLanguage()
+        _uiState.value = _uiState.value.copy(audioLabel = language)
+        viewModelScope.launch { settings.setAudioLanguage(language) }
+    }
+    fun toggleSubtitles() {
+        val enabled = playerManager.setSubtitlesEnabled(!_uiState.value.subtitlesEnabled)
+        _uiState.value = _uiState.value.copy(subtitlesEnabled = enabled)
+        viewModelScope.launch { settings.setSubtitlesEnabled(enabled) }
+    }
+
+    fun clearEpg() = viewModelScope.launch {
+        repository.clearEpg()
+        _uiState.value = _uiState.value.copy(message = "本地节目单缓存已清空")
+    }
+
+    fun clearHistory() = viewModelScope.launch {
+        repository.clearHistory()
+        _uiState.value = _uiState.value.copy(message = "最近观看记录已清空")
+    }
+
+    fun clearFavorites() = viewModelScope.launch {
+        repository.clearFavorites()
+        _uiState.value = _uiState.value.copy(message = "收藏已重置")
+    }
 
     fun runDiagnostics(playlistUrl: String = _uiState.value.config.playlistUrl, epgUrl: String = _uiState.value.config.epgUrl) {
         viewModelScope.launch {
@@ -197,10 +266,13 @@ class MainViewModel @Inject constructor(
                 val uri = URI(epgUrl)
                 "${uri.scheme}://${uri.host}${if (uri.port > 0) ":${uri.port}" else ""}/healthz"
             }.getOrDefault("http://192.168.31.200:8091/healthz")
+            val epgStatus = epgHealth.substringBeforeLast('/') + "/status.json"
             val results = mutableListOf(
+                networkMonitor.diagnose(),
                 repository.checkUrl("频道列表", playlistUrl),
                 repository.checkUrl("节目单", epgUrl),
                 repository.checkUrl("EPG 服务", epgHealth),
+                repository.checkUrl("EPG 状态", epgStatus),
                 repository.checkUrl("HLS 服务", hlsHealth),
             )
             _uiState.value.channels.firstOrNull()?.let {
@@ -210,18 +282,43 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun pauseForBackground() = playerManager.pauseForBackground()
+    fun openDiagnostics() {
+        playerManager.stop()
+        _uiState.value = _uiState.value.copy(screen = AppScreen.SETTINGS)
+        runDiagnostics()
+    }
+
+    fun pauseForBackground() = playerManager.stop()
+    fun resumeAfterForeground() {
+        if (_uiState.value.screen == AppScreen.PLAYER) _uiState.value.selectedChannel?.let(playerManager::play)
+    }
     fun releasePlayer() = playerManager.release()
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_READY) retryCount = 0
-        _uiState.value = _uiState.value.copy(playbackState = playbackState)
+        bufferingJob?.cancel()
+        _uiState.value = _uiState.value.copy(playbackState = playbackState, showBuffering = false)
+        if (playbackState == Player.STATE_BUFFERING) {
+            bufferingJob = viewModelScope.launch {
+                delay(800)
+                if (_uiState.value.playbackState == Player.STATE_BUFFERING) {
+                    _uiState.value = _uiState.value.copy(showBuffering = true)
+                }
+            }
+        }
     }
 
     override fun onPlayerError(error: PlaybackException) {
-        val detail = error.errorCodeName + "：" + (error.message ?: "播放失败")
-        _uiState.value = _uiState.value.copy(playbackError = detail, controlsVisible = true)
         val httpStatus = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+        val conclusion = when {
+            httpStatus == 404 -> "频道配置已失效"
+            httpStatus == 502 || httpStatus == 503 -> "NAS 正在启动频道或媒体服务异常"
+            error.errorCodeName.contains("DECOD", ignoreCase = true) -> "电视不支持该频道的媒体编码"
+            error.errorCodeName.contains("NETWORK", ignoreCase = true) || error.errorCodeName.contains("TIMEOUT", ignoreCase = true) -> "电视无法连接直播服务"
+            else -> "播放失败"
+        }
+        val detail = "$conclusion（${error.errorCodeName}）：${error.message ?: "无更多信息"}"
+        _uiState.value = _uiState.value.copy(playbackError = detail, controlsVisible = true)
         if (httpStatus != 404 && retryCount < 3) {
             val delayMillis = listOf(1_000L, 2_000L, 4_000L)[retryCount]
             retryCount += 1
@@ -241,5 +338,9 @@ class MainViewModel @Inject constructor(
 
     override fun onCleared() {
         playerManager.player.removeListener(this)
+    }
+
+    private companion object {
+        const val REFRESH_INTERVAL_MS = 6 * 60 * 60_000L
     }
 }

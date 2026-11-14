@@ -31,4 +31,20 @@ class XmlTvParserTest {
         val after = Instant.parse("2026-11-16T00:00:00Z").toEpochMilli()
         assertThat(XmlTvParser().parse(xml, after, after + 60_000)).isEmpty()
     }
+
+    @Test
+    fun fillsMissingStopFromNextProgrammeAndKeepsUnknownLastStop() {
+        val xml = """
+            <tv>
+              <programme start="20261115120000 +0800" channel="c"><title>节目一</title></programme>
+              <programme start="20261115123000 +0800" channel="c"><title>节目二</title></programme>
+            </tv>
+        """.trimIndent()
+        val from = Instant.parse("2026-11-15T03:00:00Z").toEpochMilli()
+        val programmes = XmlTvParser().parse(xml, from, from + 2 * 3_600_000)
+
+        assertThat(programmes).hasSize(2)
+        assertThat(programmes[0].stopAt).isEqualTo(programmes[1].startAt)
+        assertThat(programmes[1].stopAt).isNull()
+    }
 }

@@ -29,16 +29,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Subtitles
@@ -47,6 +51,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +60,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +76,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -79,12 +86,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.wangjingfei.hometv.BuildConfig
+import com.wangjingfei.hometv.R
 import com.wangjingfei.hometv.data.Channel
 import com.wangjingfei.hometv.data.DiagnosticStatus
 import com.wangjingfei.hometv.data.Programme
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 @Composable
 fun HomeTvApp(viewModel: MainViewModel) {
@@ -109,24 +116,24 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
             Column(Modifier.weight(0.9f)) {
                 Icon(Icons.Default.LiveTv, contentDescription = null, tint = Mint, modifier = Modifier.size(64.dp))
                 Spacer(Modifier.height(24.dp))
-                Text("家庭电视", fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.app_name), fontSize = 42.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(12.dp))
-                Text("连接家庭 IPTV 服务", fontSize = 22.sp, color = TextMuted)
+                Text(stringResource(R.string.setup_subtitle), fontSize = 22.sp, color = TextMuted)
                 Spacer(Modifier.height(28.dp))
-                Text("默认地址已填写，选择“连接并同步”即可开始。", color = TextMuted)
+                Text(stringResource(R.string.setup_hint), color = TextMuted, fontSize = 18.sp)
             }
             Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
                     value = playlist,
                     onValueChange = { playlist = it },
-                    label = { Text("频道列表 URL") },
+                    label = { Text(stringResource(R.string.playlist_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = epg,
                     onValueChange = { epg = it },
-                    label = { Text("XMLTV URL") },
+                    label = { Text(stringResource(R.string.xmltv_url)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -134,9 +141,9 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                 Button(onClick = { viewModel.sync(playlist, epg) }, enabled = !state.isSyncing, modifier = Modifier.height(52.dp)) {
                     if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, null)
                     Spacer(Modifier.width(10.dp))
-                    Text(if (state.isSyncing) "正在连接" else "连接并同步")
+                    Text(stringResource(if (state.isSyncing) R.string.connecting else R.string.connect_and_sync))
                 }
-                if (state.channels.isNotEmpty()) Button(onClick = viewModel::openHome) { Text("使用本地缓存进入") }
+                if (state.channels.isNotEmpty()) Button(onClick = viewModel::openHome) { Text(stringResource(R.string.use_cache)) }
             }
         }
     }
@@ -146,21 +153,27 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
 private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
     val firstCardFocus = remember { FocusRequester() }
     var previewChannelId by remember { mutableStateOf<String?>(null) }
+    val gridState = rememberLazyGridState()
+    val visibleChannels = state.visibleChannels
+    val focusIndex = visibleChannels.indexOfFirst { it.id == state.lastChannelId }.takeIf { it >= 0 } ?: 0
     Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(start = 44.dp, end = 44.dp, top = 28.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.LiveTv, null, tint = Mint, modifier = Modifier.size(34.dp))
                 Spacer(Modifier.width(12.dp))
-                Text("家庭电视", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.app_name), fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 SearchField(state.searchQuery, viewModel::setSearch)
                 Spacer(Modifier.width(12.dp))
                 IconButton(onClick = { viewModel.sync() }, enabled = !state.isSyncing) {
-                    if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, "同步")
+                    if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, stringResource(R.string.sync))
                 }
-                IconButton(onClick = viewModel::openSettings) { Icon(Icons.Default.Settings, "设置") }
+                IconButton(onClick = viewModel::openSettings) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
             }
-            state.message?.let { Text(it, color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp)) }
+            state.message?.let { Text(it, color = TextMuted, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp)) }
+            if (state.lastEpgSyncAt == 0L || System.currentTimeMillis() - state.lastEpgSyncAt > 12 * 60 * 60_000L) {
+                Text(stringResource(R.string.epg_stale), color = Warm, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp))
+            }
             Spacer(Modifier.height(20.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(state.groups) { group ->
@@ -168,9 +181,9 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
                 }
             }
             Spacer(Modifier.height(18.dp))
-            if (state.visibleChannels.isEmpty()) {
+            if (visibleChannels.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(if (state.searchQuery.isBlank()) "这个分组暂无频道" else "没有匹配的频道", color = TextMuted, fontSize = 20.sp)
+                    Text(stringResource(if (state.searchQuery.isBlank()) R.string.group_empty else R.string.search_empty), color = TextMuted, fontSize = 20.sp)
                 }
             } else {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -178,9 +191,10 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
                         columns = GridCells.Fixed(4),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
+                        state = gridState,
                         modifier = Modifier.weight(0.72f).fillMaxHeight(),
                     ) {
-                        items(state.visibleChannels, key = { it.id }) { channel ->
+                        items(visibleChannels, key = { it.id }) { channel ->
                             ChannelCard(
                                 channel = channel,
                                 now = state.currentProgramme(channel.id),
@@ -188,14 +202,21 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
                                 onPlay = { viewModel.play(channel) },
                                 onFavorite = { viewModel.toggleFavorite(channel.id) },
                                 onFocus = { previewChannelId = channel.id },
-                                modifier = if (channel == state.visibleChannels.first()) Modifier.focusRequester(firstCardFocus) else Modifier,
+                                modifier = if (channel == visibleChannels[focusIndex]) Modifier.focusRequester(firstCardFocus) else Modifier,
                             )
                         }
                     }
-                    val preview = state.channels.firstOrNull { it.id == previewChannelId } ?: state.visibleChannels.first()
-                    ProgrammePanel(preview, state.programmes.filter { it.channelId == preview.id && it.stopAt >= System.currentTimeMillis() }, Modifier.weight(0.28f))
+                    val preview = state.channels.firstOrNull { it.id == previewChannelId } ?: visibleChannels[focusIndex]
+                    ProgrammePanel(
+                        preview,
+                        state.programmes.filter { it.channelId == preview.id && (it.stopAt == null || it.stopAt >= System.currentTimeMillis()) },
+                        Modifier.weight(0.28f),
+                    )
                 }
-                LaunchedEffect(state.selectedGroup, state.searchQuery) { runCatching { firstCardFocus.requestFocus() } }
+                LaunchedEffect(state.selectedGroup, state.searchQuery, state.channels.size) {
+                    gridState.scrollToItem(focusIndex)
+                    runCatching { firstCardFocus.requestFocus() }
+                }
             }
         }
     }
@@ -207,8 +228,8 @@ private fun SearchField(query: String, onChange: (String) -> Unit) {
         value = query,
         onValueChange = onChange,
         leadingIcon = { Icon(Icons.Default.Search, null) },
-        trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { onChange("") }) { Icon(Icons.Default.Close, "清除") } },
-        placeholder = { Text("搜索频道") },
+        trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { onChange("") }) { Icon(Icons.Default.Close, stringResource(R.string.clear)) } },
+        placeholder = { Text(stringResource(R.string.search_channel)) },
         singleLine = true,
         modifier = Modifier.width(260.dp).height(54.dp),
     )
@@ -250,13 +271,13 @@ private fun ChannelCard(
                 Text(channel.number.toString().padStart(3, '0'), color = Mint, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onFavorite, modifier = Modifier.size(30.dp)) {
-                    Icon(if (channel.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "收藏", tint = if (channel.favorite) Warm else TextMuted)
+                    Icon(if (channel.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, stringResource(R.string.favorite), tint = if (channel.favorite) Warm else TextMuted)
                 }
             }
             Text(channel.name, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(8.dp))
-            Text(now?.title ?: "暂无节目单", color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp)
-            next?.let { Text("接下来  ${it.title}", color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp) }
+            Text(now?.title ?: stringResource(R.string.no_epg), color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 16.sp)
+            next?.let { Text(stringResource(R.string.next_program, it.title), color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 16.sp) }
         }
     }
 }
@@ -265,13 +286,13 @@ private fun ChannelCard(
 private fun ProgrammePanel(channel: Channel, programmes: List<Programme>, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxHeight().background(Panel, RoundedCornerShape(6.dp)).padding(18.dp)) {
         Text(channel.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("节目单", color = Mint, fontSize = 13.sp)
+        Text(stringResource(R.string.programme_guide), color = Mint, fontSize = 18.sp)
         Spacer(Modifier.height(14.dp))
-        if (programmes.isEmpty()) Text("暂无未来节目", color = TextMuted)
+        if (programmes.isEmpty()) Text(stringResource(R.string.no_future_programme), color = TextMuted, fontSize = 18.sp)
         programmes.take(9).forEachIndexed { index, programme ->
             Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.Top) {
-                Text(formatTime(programme.startAt), color = if (index == 0) Mint else TextMuted, fontSize = 13.sp, modifier = Modifier.width(48.dp))
-                Text(programme.title, color = if (index == 0) TextPrimary else TextMuted, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+                Text(formatTime(programme.startAt), color = if (index == 0) Mint else TextMuted, fontSize = 16.sp, modifier = Modifier.width(68.dp))
+                Text(programme.title, color = if (index == 0) TextPrimary else TextMuted, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 17.sp)
             }
         }
     }
@@ -279,14 +300,15 @@ private fun ProgrammePanel(channel: Channel, programmes: List<Programme>, modifi
 
 @Composable
 private fun PlayerScreen(state: MainUiState, viewModel: MainViewModel) {
-    val focus = remember { FocusRequester() }
+    val rootFocus = remember { FocusRequester() }
+    val controlsFocus = remember { FocusRequester() }
     val channel = state.selectedChannel ?: return
     Box(
         Modifier.fillMaxSize()
             .background(Color.Black)
-            .focusRequester(focus)
+            .focusRequester(rootFocus)
             .focusable()
-            .onPreviewKeyEvent { event -> handlePlayerKey(event.nativeKeyEvent, viewModel) },
+            .onPreviewKeyEvent { event -> handlePlayerKey(event.nativeKeyEvent, state.controlsVisible, viewModel) },
     ) {
         AndroidView(
             factory = { context ->
@@ -294,56 +316,91 @@ private fun PlayerScreen(state: MainUiState, viewModel: MainViewModel) {
                     player = viewModel.playerManager.player
                     useController = false
                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    keepScreenOn = true
+                    keepScreenOn = false
                     layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                 }
             },
-            update = { it.player = viewModel.playerManager.player },
+            update = {
+                it.player = viewModel.playerManager.player
+                it.keepScreenOn = state.playbackState == Player.STATE_READY && viewModel.playerManager.player.playWhenReady
+            },
             modifier = Modifier.fillMaxSize(),
         )
-        if (state.playbackState == Player.STATE_BUFFERING) CircularProgressIndicator(Modifier.align(Alignment.Center).size(54.dp), color = Mint)
+        if (state.showBuffering) CircularProgressIndicator(Modifier.align(Alignment.Center).size(54.dp), color = Mint)
         AnimatedVisibility(state.controlsVisible, modifier = Modifier.fillMaxSize()) {
-            PlayerOverlay(state, viewModel, channel)
+            PlayerOverlay(state, viewModel, channel, controlsFocus)
         }
         if (state.numericBuffer.isNotEmpty()) {
             Text(state.numericBuffer, fontSize = 68.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).padding(48.dp))
         }
     }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    LaunchedEffect(state.controlsVisible) {
+        if (state.controlsVisible) runCatching { controlsFocus.requestFocus() }
+        else rootFocus.requestFocus()
+    }
 }
 
-private fun handlePlayerKey(event: KeyEvent, viewModel: MainViewModel): Boolean {
+private fun handlePlayerKey(event: KeyEvent, controlsVisible: Boolean, viewModel: MainViewModel): Boolean {
     if (event.action != KeyEvent.ACTION_DOWN) return false
+    if (controlsVisible) {
+        return when (event.keyCode) {
+            KeyEvent.KEYCODE_CHANNEL_UP -> { viewModel.switchChannel(-1); true }
+            KeyEvent.KEYCODE_CHANNEL_DOWN -> { viewModel.switchChannel(1); true }
+            KeyEvent.KEYCODE_MENU -> { viewModel.hideControls(); true }
+            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> { viewModel.enterDigit(event.keyCode - KeyEvent.KEYCODE_0); true }
+            else -> false
+        }
+    }
     return when (event.keyCode) {
         KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { viewModel.switchChannel(-1); true }
         KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { viewModel.switchChannel(1); true }
         KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> { viewModel.showControls(); true }
-        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MENU -> { viewModel.toggleControls(); true }
+        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MENU -> { viewModel.showControls(); true }
         in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> { viewModel.enterDigit(event.keyCode - KeyEvent.KEYCODE_0); true }
         else -> false
     }
 }
 
 @Composable
-private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel: Channel) {
+private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel: Channel, focusRequester: FocusRequester) {
     Box(Modifier.fillMaxSize().background(Color(0x55000000))) {
         Column(
-            Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xE6111517)).padding(horizontal = 44.dp, vertical = 24.dp),
+            Modifier.align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(Color(0xE6111517))
+                .onFocusChanged { if (it.hasFocus) viewModel.holdControls() else viewModel.resumeControlsTimeout() }
+                .padding(horizontal = 44.dp, vertical = 24.dp),
         ) {
+            val currentIndex = state.channels.indexOfFirst { it.id == channel.id }.coerceAtLeast(0)
+            val quickChannels = (-2..2).map { state.channels[(currentIndex + it + state.channels.size) % state.channels.size] }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(quickChannels, key = { it.id }) { quickChannel ->
+                    Button(
+                        onClick = { viewModel.play(quickChannel) },
+                        modifier = if (quickChannel.id == channel.id) Modifier.focusRequester(focusRequester) else Modifier,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (quickChannel.id == channel.id) Mint else PanelRaised,
+                            contentColor = if (quickChannel.id == channel.id) Ink else TextPrimary,
+                        ),
+                        shape = RoundedCornerShape(6.dp),
+                    ) { Text(stringResource(R.string.quick_channel, quickChannel.number, quickChannel.name), maxLines = 1) }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(channel.number.toString().padStart(3, '0'), color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(16.dp))
                 Text(channel.name, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { viewModel.toggleFavorite(channel.id) }) {
-                    Icon(if (channel.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "收藏", tint = if (channel.favorite) Warm else TextPrimary)
+                    Icon(if (channel.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, stringResource(R.string.favorite), tint = if (channel.favorite) Warm else TextPrimary)
                 }
                 Button(onClick = viewModel::cycleAudio, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
-                    Icon(Icons.Default.Headphones, null); Spacer(Modifier.width(6.dp)); Text(state.audioLabel)
+                    Icon(Icons.Default.Headphones, null); Spacer(Modifier.width(6.dp)); Text(state.audioLabel ?: stringResource(R.string.default_audio))
                 }
                 Spacer(Modifier.width(8.dp))
                 Button(onClick = viewModel::toggleSubtitles, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
-                    Icon(Icons.Default.Subtitles, null); Spacer(Modifier.width(6.dp)); Text(if (state.subtitlesEnabled) "字幕开" else "字幕关")
+                    Icon(Icons.Default.Subtitles, null); Spacer(Modifier.width(6.dp)); Text(stringResource(if (state.subtitlesEnabled) R.string.subtitles_on else R.string.subtitles_off))
                 }
             }
             val now = state.currentProgramme(channel.id)
@@ -351,21 +408,23 @@ private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel:
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
-                    Text(now?.title ?: "正在直播", fontSize = 19.sp)
-                    if (now != null) {
+                    Text(now?.title ?: stringResource(R.string.live_now), fontSize = 19.sp)
+                    if (now?.stopAt != null) {
                         Spacer(Modifier.height(7.dp))
                         val progress = ((System.currentTimeMillis() - now.startAt).toFloat() / (now.stopAt - now.startAt).coerceAtLeast(1)).coerceIn(0f, 1f)
                         LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(4.dp), color = Mint)
                     }
                 }
-                next?.let { Text("接下来 ${formatTime(it.startAt)}  ${it.title}", color = TextMuted, modifier = Modifier.padding(start = 28.dp)) }
+                next?.let { Text(stringResource(R.string.next_program_with_time, formatTime(it.startAt), it.title), color = TextMuted, modifier = Modifier.padding(start = 28.dp)) }
             }
             state.playbackError?.let {
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Warning, null, tint = ErrorRed)
                     Spacer(Modifier.width(8.dp)); Text(it, color = ErrorRed, modifier = Modifier.weight(1f))
-                    Button(onClick = viewModel::retry) { Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(6.dp)); Text("重试") }
+                    Button(onClick = viewModel::retry) { Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.retry)) }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = viewModel::openDiagnostics, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) { Text(stringResource(R.string.view_diagnostics)) }
                 }
             }
         }
@@ -376,32 +435,47 @@ private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel:
 private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
     var playlist by remember(state.config.playlistUrl) { mutableStateOf(state.config.playlistUrl) }
     var epg by remember(state.config.epgUrl) { mutableStateOf(state.config.epgUrl) }
+    var confirmAction by remember { mutableStateOf<String?>(null) }
     Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize().padding(44.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
             Column(Modifier.weight(1.15f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = viewModel::openHome) { Icon(Icons.Default.Home, "返回首页") }
-                    Spacer(Modifier.width(8.dp)); Text("来源与同步", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = viewModel::openHome) { Icon(Icons.Default.Home, stringResource(R.string.back_home)) }
+                    Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.sources_and_sync), fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(24.dp))
-                OutlinedTextField(playlist, { playlist = it }, label = { Text("频道列表 URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(playlist, { playlist = it }, label = { Text(stringResource(R.string.playlist_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(14.dp))
-                OutlinedTextField(epg, { epg = it }, label = { Text("XMLTV URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(epg, { epg = it }, label = { Text(stringResource(R.string.xmltv_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(18.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { viewModel.sync(playlist, epg) }, enabled = !state.isSyncing) {
-                        Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(7.dp)); Text("保存并同步")
+                        Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.save_and_sync))
                     }
                     Button(onClick = { viewModel.runDiagnostics(playlist, epg) }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
-                        Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(7.dp)); Text("运行诊断")
+                        Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.run_diagnostics))
                     }
                 }
                 state.message?.let { Text(it, color = TextMuted, modifier = Modifier.padding(top = 14.dp)) }
+                Spacer(Modifier.height(26.dp))
+                Text(stringResource(R.string.local_data), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(onClick = { confirmAction = "epg" }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                        Icon(Icons.Default.DeleteSweep, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.clear_epg))
+                    }
+                    Button(onClick = { confirmAction = "history" }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                        Icon(Icons.Default.History, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.clear_history))
+                    }
+                    Button(onClick = { confirmAction = "favorites" }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                        Icon(Icons.Default.RestartAlt, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.reset_favorites))
+                    }
+                }
             }
             Column(Modifier.weight(0.85f).fillMaxHeight()) {
-                Text("连接诊断", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.connection_diagnostics), fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(18.dp))
-                if (state.diagnostics.isEmpty()) Text("运行诊断后显示频道列表、节目单和 HLS 服务的连接结果。", color = TextMuted)
+                if (state.diagnostics.isEmpty()) Text(stringResource(R.string.diagnostics_hint), color = TextMuted, fontSize = 18.sp)
                 state.diagnostics.forEach { item ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.Top) {
                         val color = when (item.status) {
@@ -412,14 +486,40 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                         }
                         Icon(if (item.status == DiagnosticStatus.OK) Icons.Default.CheckCircle else Icons.Default.Warning, null, tint = color)
                         Spacer(Modifier.width(10.dp))
-                        Column { Text(item.name, fontWeight = FontWeight.SemiBold); Text(item.detail, color = TextMuted, fontSize = 13.sp) }
+                        Column { Text(item.name, fontWeight = FontWeight.SemiBold); Text(item.detail, color = TextMuted, fontSize = 16.sp) }
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Text("应用版本 0.1.0", color = TextMuted, fontSize = 12.sp)
+                Text(stringResource(R.string.app_version, BuildConfig.VERSION_NAME), color = TextMuted, fontSize = 16.sp)
             }
         }
     }
+    when (confirmAction) {
+        "epg" -> ConfirmDialog(stringResource(R.string.confirm_clear_epg_title), stringResource(R.string.confirm_clear_epg_detail), {
+            confirmAction = null
+            viewModel.clearEpg()
+        }) { confirmAction = null }
+        "history" -> ConfirmDialog(stringResource(R.string.confirm_clear_history_title), stringResource(R.string.confirm_clear_history_detail), {
+            confirmAction = null
+            viewModel.clearHistory()
+        }) { confirmAction = null }
+        "favorites" -> ConfirmDialog(stringResource(R.string.confirm_reset_favorites_title), stringResource(R.string.confirm_reset_favorites_detail), {
+            confirmAction = null
+            viewModel.clearFavorites()
+        }) { confirmAction = null }
+    }
 }
 
-private fun formatTime(epochMillis: Long): String = SimpleDateFormat("HH:mm", Locale.CHINA).format(Date(epochMillis))
+@Composable
+private fun ConfirmDialog(title: String, detail: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(detail) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+@Composable
+private fun formatTime(epochMillis: Long): String = android.text.format.DateFormat.getTimeFormat(LocalContext.current).format(Date(epochMillis))

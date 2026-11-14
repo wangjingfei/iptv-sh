@@ -52,6 +52,9 @@ android_required = (
     "android-tv/app/src/main/java/com/wangjingfei/hometv/ui/HomeTvApp.kt",
     "android-tv/app/src/main/java/com/wangjingfei/hometv/data/M3uParser.kt",
     "android-tv/app/src/main/java/com/wangjingfei/hometv/data/XmlTvParser.kt",
+    "android-tv/app/src/main/java/com/wangjingfei/hometv/data/SourceHttpClient.kt",
+    "android-tv/app/src/main/java/com/wangjingfei/hometv/data/NetworkMonitor.kt",
+    "android-tv/app/src/androidTest/java/com/wangjingfei/hometv/data/AppDatabaseMigrationTest.kt",
 )
 for relative in android_required:
     if not (ROOT / relative).is_file():

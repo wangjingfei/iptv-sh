@@ -1,16 +1,20 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.1.0` 开发版，已经能够生成带调试签名、可侧载的 APK；物理电视的遥控器、4K 解码、长时间播放和正式签名升级仍待实机验收。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.2.0` 开发版，已经能够生成带调试签名、可侧载的 APK；物理电视的遥控器、4K 解码、长时间播放和正式签名升级仍待实机验收。
 
 ## 已实现
 
 - 从可修改的 M3U 和 XMLTV 地址同步频道与节目单。
+- 使用 ETag/Last-Modified 条件请求，未变化的数据不会重复解析和写库。
 - Room 缓存频道/节目，DataStore 保存来源配置和上次频道。
+- 数据库显式迁移到 v3；节目缺少结束时间时仍可保存，消失频道的收藏保留 30 天。
 - 全部、收藏、最近和确定性频道分组，支持名称或频道号搜索。
 - 首页显示当前、下一及后续节目；EPG 不可用时仍保留频道缓存。
 - Media3 HLS 全屏播放、上下换台、350 ms 换台防抖、数字键选台。
+- 返回首页或进入后台时停止播放器，仍处于播放页时回到前台自动恢复当前频道。
 - 音轨切换、字幕开关、播放错误码、1/2/4 秒自动重试和手动重试。
 - M3U、XMLTV、EPG 健康、HLS 健康和样例频道 HLS 的诊断。
+- 支持清空节目单、最近观看和收藏，并对破坏性操作二次确认。
 - Leanback 启动入口、横屏全屏、无触摸屏依赖和电视 banner。
 
 详细产品与验收基线见[《Android TV 应用详细设计》](../docs/android-tv-player.md)，当前验证结果见[《Android TV 开发验证记录》](../docs/android-tv-test-report.md)。
@@ -26,7 +30,7 @@ sdk.dir=/你的/Android/Sdk
 执行：
 
 ```sh
-./gradlew testDebugUnitTest assembleDebug
+./gradlew testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug
 ```
 
 APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。安装到已开启 ADB 的电视或盒子：
@@ -52,4 +56,14 @@ adb uninstall com.wangjingfei.hometv.debug
 
 ## 正式发布
 
-仓库不保存 keystore 或密码。当前 Debug APK 使用 Android 调试签名，可以直接侧载，但不能视为正式发布包。正式发布前需要准备独立 keystore、配置 release 签名、生成 SHA-256，并在同一台物理电视上验证安装、升级和回滚。
+仓库不保存 keystore 或密码。当前 Debug APK 使用 Android 调试签名，可以直接侧载，但不能视为正式发布包。正式发布时通过环境变量提供签名材料：
+
+```sh
+export HOME_TV_KEYSTORE=/安全位置/home-tv-release.jks
+export HOME_TV_STORE_PASSWORD='...'
+export HOME_TV_KEY_ALIAS='home-tv'
+export HOME_TV_KEY_PASSWORD='...'
+./gradlew assembleRelease
+```
+
+四项变量不齐全时仍可验证 R8 构建，但输出文件是 `app-release-unsigned.apk`。正式签名后需要生成 SHA-256，并在同一台物理电视上验证安装、升级和回滚。

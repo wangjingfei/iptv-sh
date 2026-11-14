@@ -7,6 +7,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.session.MediaSession
 import com.wangjingfei.hometv.data.Channel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -17,7 +19,14 @@ import kotlinx.coroutines.flow.StateFlow
 
 @Singleton
 class PlayerManager @Inject constructor(@ApplicationContext context: Context) {
-    val player: ExoPlayer = ExoPlayer.Builder(context).build().apply {
+    private val dataSourceFactory = DefaultHttpDataSource.Factory()
+        .setConnectTimeoutMs(5_000)
+        .setReadTimeoutMs(15_000)
+        .setAllowCrossProtocolRedirects(false)
+    val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactory))
+        .build()
+        .apply {
         repeatMode = Player.REPEAT_MODE_ONE
         playWhenReady = true
     }
@@ -48,12 +57,12 @@ class PlayerManager @Inject constructor(@ApplicationContext context: Context) {
         player.play()
     }
 
-    fun cycleAudioLanguage(): String {
+    fun cycleAudioLanguage(): String? {
         val languages = player.currentTracks.groups
             .filter { it.type == C.TRACK_TYPE_AUDIO }
             .flatMap { group -> (0 until group.mediaTrackGroup.length).mapNotNull { group.mediaTrackGroup.getFormat(it).language } }
             .distinct()
-        if (languages.isEmpty()) return "默认音轨"
+        if (languages.isEmpty()) return null
         val current = player.trackSelectionParameters.preferredAudioLanguages.firstOrNull()
         val next = languages[(languages.indexOf(current).takeIf { it >= 0 }?.plus(1) ?: 0) % languages.size]
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
@@ -62,15 +71,20 @@ class PlayerManager @Inject constructor(@ApplicationContext context: Context) {
         return next
     }
 
-    fun toggleSubtitles(): Boolean {
-        val disabled = player.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)
+    fun setSubtitlesEnabled(enabled: Boolean): Boolean {
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !disabled)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !enabled)
             .build()
-        return disabled
+        return enabled
     }
 
-    fun pauseForBackground() = player.stop()
+    fun setPreferredAudioLanguage(language: String?) {
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setPreferredAudioLanguage(language)
+            .build()
+    }
+
+    fun stop() = player.stop()
 
     fun release() {
         mediaSession.release()

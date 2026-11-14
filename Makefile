@@ -1,4 +1,4 @@
-.PHONY: check live-check live-check-quick android-test android-apk
+.PHONY: check live-check live-check-quick android-test android-check android-apk
 
 check:
 	python3 scripts/validate.py
@@ -14,5 +14,8 @@ live-check-quick:
 android-test:
 	cd android-tv && ./gradlew testDebugUnitTest
 
+android-check:
+	cd android-tv && ./gradlew testDebugUnitTest compileDebugAndroidTestKotlin lintDebug
+
 android-apk:
-	cd android-tv && ./gradlew testDebugUnitTest assembleDebug
+	cd android-tv && ./gradlew testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease

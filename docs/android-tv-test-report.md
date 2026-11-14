@@ -2,16 +2,17 @@
 
 ## 当前结论
 
-`0.1.0` 开发版已经具备可重复构建的 Gradle 工程、单元测试和可侧载 Debug APK。当前结论仅覆盖本地构建与家庭网络在线接口，不等同于物理电视验收完成。
+`0.2.0` 开发版已经具备可重复构建的 Gradle 工程、单元测试、显式数据库迁移和可侧载 Debug APK。当前结论仅覆盖本地构建与家庭网络在线接口，不等同于物理电视验收完成。
 
 ## 2026-11-15 本地验证
 
 | 项目 | 结果 | 说明 |
 | --- | --- | --- |
 | Kotlin/资源/Hilt/Room 编译 | 通过 | AGP 8.13.2、Gradle 8.13、Android 36 |
-| JVM 单元测试 | 通过 | 9 项，覆盖 M3U、相对 URL、XMLTV 时区、来源限制和频道分组 |
-| Debug APK | 通过 | `com.wangjingfei.hometv.debug`，版本 `0.1.0-debug`，最低 API 23 |
-| Release 构建与 R8 压缩 | 通过 | 已生成未签名 release APK，独立签名仍待配置 |
+| JVM 单元测试 | 通过 | 14 项，覆盖 M3U 容错、条件请求、XMLTV 时区/缺失 stop、来源限制、频道分组和首页筛选 |
+| Room 迁移测试 | 已编译，未执行 | v1→v2 保留节目、v2→v3 增加收藏归档；需要连接 Android 设备才能运行 |
+| Debug APK | 通过 | `com.wangjingfei.hometv.debug`，版本 `0.2.0-debug`，最低 API 23 |
+| Release 构建与 R8 压缩 | 通过 | 已生成未签名 release APK；已支持环境变量注入独立签名，真实升级仍待验证 |
 | 仓库静态检查 | 通过 | Python、Compose、秘密特征和 Android TV 工程结构 |
 | 当前后端快速在线检查 | 通过 | 112 个频道，抽测组播/HLS 实际播放，EPG 匹配 100/112 |
 | Android TV 模拟器 | 未执行 | 本机只剩约 1 GiB 空间，Google TV 系统镜像无法安装 |
@@ -19,13 +20,14 @@
 | 遥控器全路径 | 未验证 | 需要物理遥控器或 TV 模拟器 |
 | 普通频道与 4K 解码 | 未验证 | 依赖目标电视硬件 |
 | 连续播放 1 小时/连续换台 | 未验证 | 需要目标电视与 NAS 联合观察 |
+| Home/返回后的 HLS 释放与恢复 | 代码路径已实现，未实机验证 | 返回首页和进入后台会停止播放器；回到仍打开的播放页会恢复当前频道 |
 | release 签名、升级和回滚 | 未验证 | 尚未配置独立 release keystore |
 
 本地构建命令：
 
 ```sh
 cd android-tv
-./gradlew testDebugUnitTest assembleDebug
+./gradlew testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
 ```
 
 家庭网络在线检查：
@@ -47,3 +49,9 @@ make live-check-quick
 5. 抽测一个普通频道和一个 4K 频道，记录首帧时间、缓冲与错误提示。
 6. 连续播放 1 小时，再连续换台 20 次，同时观察 NAS 的活动 FFmpeg 数量。
 7. 分别停止 EPG、HLS 和路由器 udpxy，核对诊断结论；测试后恢复服务。
+
+连接设备后执行数据库迁移仪器测试：
+
+```sh
+./gradlew connectedDebugAndroidTest
+```

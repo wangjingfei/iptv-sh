@@ -31,6 +31,11 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
+    override fun onStart() {
+        super.onStart()
+        viewModel.resumeAfterForeground()
+    }
+
     override fun onDestroy() {
         if (isFinishing) viewModel.releasePlayer()
         super.onDestroy()

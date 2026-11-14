@@ -1,0 +1,37 @@
+package com.wangjingfei.hometv.ui
+
+import com.google.common.truth.Truth.assertThat
+import com.wangjingfei.hometv.data.Channel
+import com.wangjingfei.hometv.data.Programme
+import org.junit.Test
+
+class MainUiStateTest {
+    private val channels = listOf(
+        Channel("a", "上海新闻", "https://example.test/a.m3u8", "上海", 1, favorite = true),
+        Channel("b", "CCTV5", "https://example.test/b.m3u8", "央视", 2, lastWatchedAt = 20),
+        Channel("c", "湖南卫视", "https://example.test/c.m3u8", "卫视", 3, lastWatchedAt = 10),
+    )
+
+    @Test
+    fun filtersFavoritesRecentGroupsAndSearch() {
+        assertThat(MainUiState(channels = channels, selectedGroup = "收藏").visibleChannels.map { it.id }).containsExactly("a")
+        assertThat(MainUiState(channels = channels, selectedGroup = "最近").visibleChannels.map { it.id }).containsExactly("b", "c").inOrder()
+        assertThat(MainUiState(channels = channels, selectedGroup = "央视").visibleChannels.map { it.id }).containsExactly("b")
+        assertThat(MainUiState(channels = channels, searchQuery = "湖南").visibleChannels.map { it.id }).containsExactly("c")
+        assertThat(MainUiState(channels = channels, searchQuery = "2").visibleChannels.map { it.id }).containsExactly("b")
+    }
+
+    @Test
+    fun findsCurrentAndNextProgrammes() {
+        val state = MainUiState(
+            programmes = listOf(
+                Programme("a", 100, 200, "当前"),
+                Programme("a", 200, 300, "下一档"),
+                Programme("b", 100, null, "未知结束时间"),
+            ),
+        )
+        assertThat(state.currentProgramme("a", 150)?.title).isEqualTo("当前")
+        assertThat(state.nextProgramme("a", 150)?.title).isEqualTo("下一档")
+        assertThat(state.currentProgramme("b", 150)?.title).isEqualTo("未知结束时间")
+    }
+}

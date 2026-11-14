@@ -1,6 +1,6 @@
 # Android TV 应用详细设计
 
-> 状态：`0.1.0` 开发版已实现并通过本地单元测试、APK 构建和当前家庭网络快速检查。物理电视、4K、长时间播放、正式签名升级尚未验证，因此仍未达到第 16 节的最终完成定义。验证明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
+> 状态：`0.2.0` 开发版已实现并通过本地单元测试、APK 构建和当前家庭网络快速检查。条件请求、M3U 单条容错、数据库 v1→v3 迁移、30 天收藏恢复、遥控器浮层焦点和本地数据清理已落地。物理电视、4K、长时间播放、仪器迁移测试和正式签名升级尚未验证，因此仍未达到第 16 节的最终完成定义。验证明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
 
 ## 1. 产品定义
 
@@ -354,7 +354,8 @@ android-tv/app/src/
 ├─ main/java/.../ui/      首次设置、首页、播放器、设置与诊断
 ├─ main/java/.../di/      Hilt 提供数据库和网络组件
 ├─ main/res/              TV banner、图标、主题和网络安全配置
-└─ test/                  M3U、XMLTV、来源限制和分组测试
+├─ test/                  M3U、XMLTV、条件请求、来源限制、分组与首页状态测试
+└─ androidTest/           Room 跨版本迁移仪器测试
 ```
 
 首版采用单 Gradle module，并按 `data`、`player`、`ui`、`di` 建立包边界。多模块拆分、Macrobenchmark 和 Baseline Profile 留到实机性能基线明确后再做。

@@ -18,6 +18,7 @@ class IptvRepository @Inject constructor(
     private val xmlTvParser: XmlTvParser,
     private val validator: SourceValidator,
     private val settings: SettingsRepository,
+    private val sourceHttpClient: SourceHttpClient,
 ) {
     val channels: Flow<List<Channel>> = dao.observeChannels().map { rows -> rows.map(ChannelEntity::toModel) }
     fun programmes(from: Long, to: Long): Flow<List<Programme>> =
@@ -25,31 +26,57 @@ class IptvRepository @Inject constructor(
 
     suspend fun sync(playlistUrl: String, configuredEpgUrl: String): SyncResult = withContext(Dispatchers.IO) {
         validator.validate(playlistUrl).getOrThrow()
-        val playlist = m3uParser.parse(download(playlistUrl), playlistUrl)
-        playlist.channels.forEach { validator.validate(it.streamUrl).getOrThrow() }
         val previous = dao.getChannels().associateBy { it.id }
+        val playlistDownload = sourceHttpClient.download(playlistUrl, settings.playlistMetadata(playlistUrl))
+        val playlist = playlistDownload.body?.let { m3uParser.parse(it, playlistUrl) }
+        val importWarnings = playlist?.warnings?.toMutableList() ?: mutableListOf()
+        val channels = playlist?.channels?.filter { channel ->
+            validator.validate(channel.streamUrl).fold(
+                onSuccess = { true },
+                onFailure = {
+                    importWarnings += "频道 ${channel.name} 的流地址不安全或无效，已跳过：${it.message}"
+                    false
+                },
+            )
+        } ?: previous.values.sortedBy { it.channelNumber }.map(ChannelEntity::toModel)
+        require(channels.isNotEmpty()) { "播放列表中没有安全且有效的频道" }
         if (previous.isEmpty()) {
-            val sampleHls = download(playlist.channels.first().streamUrl)
+            val sampleHls = sourceHttpClient.download(channels.first().streamUrl).body.orEmpty()
             require(sampleHls.lineSequence().firstOrNull()?.trim() == "#EXTM3U") {
                 "样例频道没有返回有效的 HLS 播放列表"
             }
         }
-        val epgUrl = configuredEpgUrl.ifBlank { playlist.epgUrl.orEmpty() }
+        val epgUrl = configuredEpgUrl.ifBlank { playlist?.epgUrl.orEmpty() }
         val now = System.currentTimeMillis()
-        dao.replaceChannels(playlist.channels.map { it.toEntity(previous[it.id]) })
+        if (playlist != null) {
+            dao.replaceChannels(channels.map { it.toEntity(previous[it.id]) })
+            settings.setPlaylistMetadata(playlistUrl, playlistDownload.metadata)
+        }
         val epgResult = if (epgUrl.isNotBlank()) runCatching {
             validator.validate(epgUrl).getOrThrow()
-            xmlTvParser.parse(download(epgUrl), now - 6 * 60 * 60_000L, now + 7 * 24 * 60 * 60_000L)
+            val epgDownload = sourceHttpClient.download(epgUrl, settings.epgMetadata(epgUrl))
+            val programmes = epgDownload.body?.let {
+                xmlTvParser.parse(it, now - 6 * 60 * 60_000L, now + 7 * 24 * 60 * 60_000L)
+            }
+            if (epgDownload.body != null) settings.setEpgMetadata(epgUrl, epgDownload.metadata)
+            programmes
         } else Result.success(emptyList())
         val programmes = epgResult.getOrNull()
-        if (programmes != null) dao.replaceProgrammes(programmes.map(Programme::toEntity))
+        if (programmes != null) {
+            dao.replaceProgrammes(programmes.map(Programme::toEntity))
+        }
+        if (epgUrl.isNotBlank() && epgResult.isSuccess) settings.setLastEpgSyncAt(now)
         settings.saveConfig(playlistUrl, epgUrl, complete = true)
         settings.setLastSyncAt(now)
         SyncResult(
-            channelCount = playlist.channels.size,
-            programmeCount = programmes?.size ?: 0,
+            channelCount = channels.size,
+            programmeCount = programmes?.size ?: -1,
             completedAt = now,
-            warning = epgResult.exceptionOrNull()?.let { "节目单更新失败，已保留原缓存：${it.message}" },
+            playlistUpdated = playlist != null,
+            epgUpdated = programmes != null,
+            warning = (importWarnings + listOfNotNull(
+                epgResult.exceptionOrNull()?.let { "节目单更新失败，已保留原缓存：${it.message}" },
+            )).takeIf { it.isNotEmpty() }?.take(3)?.joinToString("；"),
         )
     }
 
@@ -58,6 +85,20 @@ class IptvRepository @Inject constructor(
     suspend fun markWatched(channelId: String) {
         dao.markWatched(channelId, System.currentTimeMillis())
         settings.setLastChannel(channelId)
+    }
+
+    suspend fun clearEpg() {
+        dao.deleteProgrammes()
+        settings.setLastEpgSyncAt(0L)
+    }
+
+    suspend fun clearHistory() {
+        dao.clearHistory()
+        settings.clearLastChannel()
+    }
+
+    suspend fun clearFavorites() {
+        dao.resetFavorites()
     }
 
     suspend fun checkUrl(name: String, url: String): DiagnosticItem = withContext(Dispatchers.IO) {
@@ -72,12 +113,4 @@ class IptvRepository @Inject constructor(
         }.getOrElse { DiagnosticItem(name, DiagnosticStatus.ERROR, it.message ?: "连接失败") }
     }
 
-    private fun download(url: String): String {
-        val request = Request.Builder().url(url).get().build()
-        return client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("$url 返回 HTTP ${response.code}")
-            response.body?.string()?.ifBlank { throw IOException("$url 返回空内容") }
-                ?: throw IOException("$url 没有响应体")
-        }
-    }
 }

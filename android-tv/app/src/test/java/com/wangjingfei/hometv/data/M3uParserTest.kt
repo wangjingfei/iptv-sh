@@ -1,7 +1,6 @@
 package com.wangjingfei.hometv.data
 
 import com.google.common.truth.Truth.assertThat
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class M3uParserTest {
@@ -27,7 +26,7 @@ class M3uParserTest {
     }
 
     @Test
-    fun rejectsDuplicateChannelIds() {
+    fun skipsDuplicateChannelIdsAndReportsWarning() {
         val content = """
             #EXTM3U
             #EXTINF:-1 tvg-id="same",频道一
@@ -35,7 +34,9 @@ class M3uParserTest {
             #EXTINF:-1 tvg-id="same",频道二
             http://192.168.31.200/2.m3u8
         """.trimIndent()
-        assertThrows(IllegalArgumentException::class.java) { parser.parse(content) }
+        val result = parser.parse(content)
+        assertThat(result.channels).hasSize(1)
+        assertThat(result.warnings.single()).contains("重复")
     }
 
     @Test
@@ -52,5 +53,21 @@ class M3uParserTest {
         assertThat(first.streamUrl).isEqualTo("http://192.168.31.200:8091/hls/test/index.m3u8")
         assertThat(first.id).isEqualTo(second.id)
         assertThat(first.id).startsWith("url-")
+        assertThat(parser.parse(content, "http://192.168.31.200:8091/lists/playlist.m3u").warnings.single()).contains("临时 ID")
+    }
+
+    @Test
+    fun skipsMalformedEntryAndKeepsValidChannel() {
+        val result = parser.parse(
+            """
+            #EXTM3U
+            #EXTINF:-1 tvg-id="broken",
+            http://192.168.31.200/broken.m3u8
+            #EXTINF:-1 tvg-id="ok",正常频道
+            http://192.168.31.200/ok.m3u8
+            """.trimIndent(),
+        )
+        assertThat(result.channels.map { it.id }).containsExactly("ok")
+        assertThat(result.warnings.single()).contains("名称为空")
     }
 }

@@ -13,7 +13,7 @@ class XmlTvParser @Inject constructor() {
     private val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss Z")
 
     fun parse(content: String, from: Long, to: Long): List<Programme> {
-        val result = mutableListOf<Programme>()
+        val parsed = mutableListOf<Programme>()
         val handler = object : DefaultHandler() {
             var channel = ""
             var start: Long? = null
@@ -50,8 +50,8 @@ class XmlTvParser @Inject constructor() {
                     "programme" -> {
                         val begin = start
                         val end = stop
-                        if (channel.isNotBlank() && begin != null && end != null && end >= from && begin <= to) {
-                            result += Programme(channel, begin, end, title, description)
+                        if (channel.isNotBlank() && begin != null) {
+                            parsed += Programme(channel, begin, end, title, description)
                         }
                     }
                 }
@@ -59,7 +59,13 @@ class XmlTvParser @Inject constructor() {
             }
         }
         SAXParserFactory.newInstance().newSAXParser().parse(InputSource(StringReader(content)), handler)
-        return result
+        return parsed.groupBy { it.channelId }.values.flatMap { channelProgrammes ->
+            val sorted = channelProgrammes.sortedBy { it.startAt }
+            sorted.mapIndexedNotNull { index, programme ->
+                val completed = if (programme.stopAt == null) programme.copy(stopAt = sorted.getOrNull(index + 1)?.startAt) else programme
+                if (completed.startAt <= to && (completed.stopAt == null || completed.stopAt >= from)) completed else null
+            }
+        }.sortedBy { it.startAt }
     }
 
     private fun parseTime(value: String?): Long? = runCatching {

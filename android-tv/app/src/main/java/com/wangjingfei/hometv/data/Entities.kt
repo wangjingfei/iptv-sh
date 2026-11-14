@@ -22,9 +22,15 @@ data class ChannelEntity(
 data class ProgrammeEntity(
     val channelId: String,
     val startAt: Long,
-    val stopAt: Long,
+    val stopAt: Long?,
     val title: String,
     val description: String,
+)
+
+@Entity(tableName = "favorite_archive", primaryKeys = ["channelId"])
+data class FavoriteArchiveEntity(
+    val channelId: String,
+    val removedAt: Long,
 )
 
 fun ChannelEntity.toModel() = Channel(id, name, streamUrl, groupName, channelNumber, favorite, lastWatchedAt)
