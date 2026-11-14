@@ -1,0 +1,77 @@
+config dhcp 'stb'
+	option interface 'stb'
+	option start '2'
+	option limit '20'
+	option leasetime '24h'
+	option dhcpv4 'server'
+	option dhcpv6 'disabled'
+	list dhcp_option_force '125,00:00:00:00:1d:02:06:48:47:57:2d:43:54:03:07:48:47:32:32:30:47:53:0a:02:20:00:0b:02:00:55:0d:02:00:2e'
+
+config host 'stb_box'
+	option name 'zte-iptv'
+	option mac 'D4:AD:2D:A5:76:18'
+	option ip '192.168.32.2'
+
+config zone 'iptv'
+	option name 'iptv'
+	list network 'iptv_bridge'
+	list network 'iptv_probe'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option family 'ipv4'
+
+config rule 'iptv_multicast_udp'
+	option name 'Allow-IPTV-Multicast-to-udpxy'
+	option src 'iptv'
+	option family 'ipv4'
+	option proto 'udp'
+	option dest_ip '224.0.0.0/4'
+	option target 'ACCEPT'
+
+config rule 'iptv_igmp'
+	option name 'Allow-IPTV-IGMP'
+	option src 'iptv'
+	option family 'ipv4'
+	option proto 'igmp'
+	option target 'ACCEPT'
+
+config zone 'stb'
+	option name 'stb'
+	list network 'stb'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option family 'ipv4'
+
+config forwarding 'stb_to_wan'
+	option src 'stb'
+	option dest 'wan'
+
+config udpxy
+	option disabled '0'
+	option respawn '1'
+	option verbose '0'
+	option status '1'
+	option port '4022'
+	option bind '192.168.31.1'
+	option source 'br-iptv'
+	option max_clients '20'
+	option buffer_size '1048576'
+	option buffer_messages '-1'
+	option buffer_time '1'
+	option socket_buffer '4194304'
+
+config igmpproxy
+	option quickleave '1'
+
+config phyint
+	option network 'iptv_bridge'
+	option zone 'iptv'
+	option direction 'upstream'
+	option altnet '0.0.0.0/0'
+
+config phyint
+	option network 'stb'
+	option zone 'stb'
+	option direction 'downstream'

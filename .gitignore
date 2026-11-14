@@ -1,0 +1,27 @@
+# Runtime-generated EPG and local environment settings
+docker/iptv-epg/data/*
+!docker/iptv-epg/data/.gitkeep
+.env
+.env.*
+!.env.example
+
+# Local credentials, backups, captures and device-specific material
+*.key
+*.pem
+*.p12
+*.pfx
+*.conf.secret
+*.pcap
+*.pcapng
+*.tar
+*.tar.gz
+router/local/
+secrets/
+
+# Build output
+__pycache__/
+*.py[cod]
+.DS_Store
+android-tv/.gradle/
+android-tv/**/build/
+android-tv/*.apk
