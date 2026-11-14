@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">家庭电视</string>
     <string name="setup_subtitle">连接家庭 IPTV 服务</string>
-    <string name="setup_hint">默认地址已填写，选择“连接并同步”即可开始。</string>
+    <string name="setup_hint">默认地址已填写，先选择“测试连接”，确认来源后保存并进入直播。</string>
     <string name="playlist_url">频道列表 URL</string>
     <string name="xmltv_url">XMLTV URL</string>
     <string name="testing_sources">正在测试</string>

@@ -20,6 +20,7 @@ class SetupFocusTest {
     @Test
     fun setupScreenSupportsDpadFocusPath() {
         composeRule.onNodeWithText("家庭电视").assertIsDisplayed()
+        composeRule.onNodeWithText("默认地址已填写，先选择“测试连接”，确认来源后保存并进入直播。").assertIsDisplayed()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("setup-playlist").assertIsFocused()
 
