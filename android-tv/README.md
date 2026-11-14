@@ -1,5 +1,5 @@
 # Android TV 客户端
 
-本目录为计划开发的原生 Android TV 应用预留。目前尚未创建 APK 或 Gradle 项目。
+本目录为计划开发的原生 Android TV 应用预留。目前尚未创建 APK 或 Gradle 项目，不能将这里的文档视为已实现功能。
 
-后端接口、开发里程碑和验收标准见[《Android TV 播放器方案》](../docs/android-tv-player.md)。
+产品范围、页面布局、遥控器焦点规则、播放状态机、数据模型、技术架构、测试矩阵和完成定义见[《Android TV 应用详细设计》](../docs/android-tv-player.md)。实现应以该文档为基线；任何需求或实现变化必须在同一提交中同步更新设计。

@@ -48,7 +48,7 @@ make live-check
 - `docs/`：网络拓扑、操作流程、故障排查、EPG 限制和 Android TV 应用规划。
 - `android-tv/`：仅包含产品与技术设计，尚未实现 APK。
 
-未来电视客户端的规划见 [Android TV 播放器方案](docs/android-tv-player.md)。`android-tv/` 目录专门预留给后续的 Gradle 项目。
+未来电视客户端的产品、交互、架构、测试和验收基线见 [Android TV 应用详细设计](docs/android-tv-player.md)。`android-tv/` 目录专门预留给后续的 Gradle 项目；当前仍未实现 APK。
 
 ## 安全要求
 
