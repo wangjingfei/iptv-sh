@@ -11,19 +11,20 @@
 | Kotlin/资源/Hilt/Room 编译 | 通过 | AGP 8.13.2、Gradle 8.13、Android 36 |
 | JVM 单元测试 | 通过 | 24 项，覆盖 112 频道导入、14,000 条 XMLTV 性能、来源探测、解码错误策略、URL 脱敏、条件请求、损坏 XML、来源限制、分组和首页筛选 |
 | Room 迁移/事务测试 | 通过 | GitHub API 35 模拟器实际执行 5 项；覆盖 v1→v3 迁移、收藏归档恢复和清空 EPG 后强制重新下载 |
+| 首次设置 DPAD 焦点 | 通过 | GitHub API 35 模拟器从完整 Activity 发送方向键，验证播放列表 → XMLTV → 测试连接；测试按钮使用 TV Material 焦点实现 |
 | Debug APK | 通过 | `com.wangjingfei.hometv.debug`，版本 `0.3.0-debug`，最低 API 23 |
-| Release 构建与 R8 压缩 | 通过 | 已生成未签名 release APK；已支持环境变量注入独立签名，真实升级仍待验证 |
+| Release 构建、R8 与签名链路 | 通过 | 已生成未签名 release APK；一次性 JKS 的 v1/v2 签名和证书读取通过，真实 release keystore 升级仍待验证 |
 | 仓库静态检查 | 通过 | Python、Compose、秘密特征和 Android TV 工程结构 |
 | 当前后端快速在线检查 | 通过 | 112 个频道，抽测组播/HLS 实际播放，EPG 匹配 100/112 |
-| 本机 Android TV 模拟器 | 未执行 | 本机只剩约 1 GiB 空间，Google TV 系统镜像无法安装；远端 API 35 模拟器测试已通过 |
+| 本机 Android TV 模拟器 | 未执行 | 本机未安装可用的 TV 系统镜像，也没有连接 ADB 设备；远端 API 35 模拟器测试已通过 |
 | 物理电视安装/启动器展示 | 未验证 | 当前 ADB 没有连接设备 |
-| 遥控器全路径 | 未验证 | 需要物理遥控器或 TV 模拟器 |
+| 遥控器全路径 | 部分通过 | 首次设置三步 DPAD 路径已在 API 35 模拟器通过；首页、播放浮层和设置页全路径仍需物理遥控器验证 |
 | 普通频道与 4K 解码 | 未验证 | 依赖目标电视硬件 |
 | 连续播放 1 小时/连续换台 | 未验证 | 需要目标电视与 NAS 联合观察 |
 | Home/返回后的 HLS 释放与恢复 | 代码路径已实现，未实机验证 | 返回首页和进入后台会停止播放器；回到仍打开的播放页会恢复当前频道 |
-| 初次来源测试流程 | 单元与服务测试通过，未实机验证 | 测试 M3U、XMLTV 和真实 HLS 样例后才允许应用来源；修改输入会使旧测试失效 |
-| GitHub Actions 自动构建 | 通过 | 运行 `43626602602` 的 build 与 instrumentation 作业均通过，已上传约 27.3 MB 的 APK 制品 |
-| release 签名、升级和回滚 | 未验证 | 尚未配置独立 release keystore |
+| 初次来源测试流程 | 自动化部分通过，未实机验证 | M3U、XMLTV 和真实 HLS 样例探测通过后才允许应用来源；修改输入会使旧测试失效；三步焦点路径已自动化 |
+| GitHub Actions 自动构建 | 通过 | 运行 `43632204828` 的 build 与 instrumentation 作业均通过；上传约 24.7 MB APK 制品和 63.9 KB 设备测试报告 |
+| release 签名、升级和回滚 | 部分通过 | 一次性 JKS 的签名构建和 APK 完整性已验证；尚未配置用户持有的 release keystore，也未在同一电视验证升级/回滚 |
 
 本地构建命令：
 
@@ -58,4 +59,4 @@ make live-check-quick
 ./gradlew connectedDebugAndroidTest
 ```
 
-GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43626602602`：完整构建和 API 35 模拟器的 5 项设备测试均通过，并成功上传 APK 制品；后续提交仍以各自运行结果为准。完整验收命令使用 `--no-parallel`，避免 AGP Lint 与 Hilt 生成测试源码之间的已知竞态。
+GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43632204828`：完整构建、临时 release 签名校验和 API 35 模拟器的 6 项设备测试均通过，并成功上传 APK 与测试报告；6 项包括 5 项 Room/数据行为测试和 1 项完整 Activity 的首次设置 DPAD 焦点测试。后续提交仍以各自运行结果为准。完整验收命令使用 `--no-parallel`，避免 AGP Lint 与 Hilt 生成测试源码之间的已知竞态。
