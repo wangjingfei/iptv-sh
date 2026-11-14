@@ -1,18 +1,16 @@
-# IPTV EPG
+# IPTV EPG 服务
 
-Standalone XMLTV filter and M3U generator for the existing `iptv-hls` service.
+为现有 `iptv-hls` 服务提供独立的 XMLTV 筛选和 M3U 生成功能。
 
-Endpoints after startup:
+启动后可访问以下接口：
 
 - `http://192.168.31.200:8091/playlist.m3u`
 - `http://192.168.31.200:8091/epg.xml`
 - `http://192.168.31.200:8091/status.json`
 
-The service refreshes every six hours. A failed refresh keeps the last valid
-cache. It only reads the existing `../iptv-hls/config/channels.json` file and
-does not modify or restart the live TV service.
+服务每 6 小时更新一次节目单。更新失败时会继续使用上一份有效缓存。服务只读访问现有的 `../iptv-hls/config/channels.json`，不会修改或重启直播服务。
 
-Start it from the FnOS Docker Compose UI using this directory, or run:
+可以在飞牛 Docker Compose 管理界面中使用本目录启动服务，也可以执行：
 
 ```sh
 docker compose up -d --build

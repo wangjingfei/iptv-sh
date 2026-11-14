@@ -1,10 +1,10 @@
-Custom deployed file: /etc/init.d/udpxy
-Purpose: maps the UCI socket_buffer option to UDPXY_SOCKBUF_LEN when launching udpxy.
-The exact file is device-specific. Retrieve it with:
-  scp root@192.168.31.1:/etc/init.d/udpxy router/local/udpxy.init
+当前设备上的自定义文件：/etc/init.d/udpxy
+作用：启动 udpxy 时，将 UCI 中的 socket_buffer 配置映射为 UDPXY_SOCKBUF_LEN 环境变量。
+如需从设备取回原始文件，可执行：
+  ssh root@192.168.31.1 'cat /etc/init.d/udpxy' > router/local/udpxy.init
 
-Also deployed:
+设备上还部署了：
   /etc/sysctl.d/90-udpxy-buffer.conf
   net.core.rmem_max=8388608
 
-Do not replace the init script with this note. The actual custom script must be backed up privately before firmware upgrades.
+不要使用本说明文件替换 init 脚本。固件升级前，必须单独安全备份实际使用的自定义脚本。

@@ -1,47 +1,47 @@
-# Current State
+# 当前状态
 
-Last live check: 2026-11-14 Asia/Shanghai. This is an operational snapshot, not a claim that every upstream IPTV endpoint will remain stable.
+最后一次在线检查时间：2026-11-14，时区为 Asia/Shanghai。这是运行状态快照，不代表所有上游 IPTV 接口今后都会保持不变。
 
-## Hardware and Firmware
+## 硬件和固件
 
-- Router: GL-MT6000 / Flint 2, ImmortalWrt 25.12.2, `mediatek/filogic`.
-- Router LAN: `192.168.31.1/24`; main WAN currently gets `192.168.100.x` from the upstream gateway. Main default route remains on WAN.
-- FnOS NAS: `192.168.31.200`.
-- STB: ZTE, MAC `D4:AD:2D:A5:76:18`, untagged DHCP reservation `192.168.32.2`.
+- 路由器：GL-MT6000 / Flint 2，ImmortalWrt 25.12.2，目标平台为 `mediatek/filogic`。
+- 路由器 LAN：`192.168.31.1/24`；主 WAN 当前从上游网关取得 `192.168.100.x`。默认路由仍然走主 WAN。
+- 飞牛 NAS：`192.168.31.200`。
+- 机顶盒：中兴，MAC 为 `D4:AD:2D:A5:76:18`，未打标签网络的 DHCP 固定地址为 `192.168.32.2`。
 
-## Physical Ports
+## 物理端口
 
-| Port | Cable | Router treatment |
+| 端口 | 接线 | 路由器处理方式 |
 | --- | --- | --- |
-| LAN5 | Optical modem IPTV port | `lan5.85`, IPTV VLAN 85 tagged |
-| LAN4 | ZTE STB | Untagged frames join isolated `br-stb`; VLAN 85 tagged frames use `lan4.85` and bridge transparently to LAN5 |
+| LAN5 | 光猫 IPTV 端口 | 使用 `lan5.85` 接收带标签的 IPTV VLAN 85 |
+| LAN4 | 中兴机顶盒 | 未打标签帧进入隔离的 `br-stb`；VLAN 85 标签帧通过 `lan4.85` 透明桥接到 LAN5 |
 
-The ZTE box uses both networks: the untagged local DHCP service supplies Option 125 and normal Internet access; VLAN 85 provides the operator IPTV network. Do not remove either side of the hybrid LAN4 configuration.
+中兴机顶盒同时使用两套网络：本地未打标签 DHCP 服务提供 Option 125 和普通互联网访问；VLAN 85 提供运营商 IPTV 专网。不要删除 LAN4 混合端口配置中的任何一侧。
 
-## Router Services
+## 路由器服务
 
-- `br-iptv`: bridge of `lan5.85` and `lan4.85`.
-- `iptv_probe`: DHCP on `br-iptv`, no default route and no peer DNS; observed address `30.171.109.55/16`, DHCP gateway `30.171.0.1`.
-- IPTV route `30.171.0.0/16` is connected on `br-iptv`; main default route is still the regular WAN.
-- `br-stb`: untagged LAN4 only, `192.168.32.1/24`, DHCP range `.2-.21`.
-- DHCP Option 125 uses the Shanghai Telecom ZTE value from the owner's prior configuration record.
-- Firewall keeps the STB subnet in its own zone and permits STB-to-WAN; no STB-to-main-LAN forwarding is configured.
-- `igmpproxy` handles native multicast for the set-top-box path.
-- `udpxy` listens on `192.168.31.1:4022`, source `br-iptv`, max clients 20, buffer 1 MiB, socket buffer 4 MiB.
-- Custom `/etc/init.d/udpxy` supports the socket buffer parameter; sysctl `rmem_max=8388608`.
+- `br-iptv`：由 `lan5.85` 和 `lan4.85` 组成的网桥。
+- `iptv_probe`：在 `br-iptv` 上使用 DHCP，但不接管默认路由和上游 DNS；已观察到地址 `30.171.109.55/16`，DHCP 网关为 `30.171.0.1`。
+- IPTV 路由 `30.171.0.0/16` 直连 `br-iptv`；默认路由仍然走普通 WAN。
+- `br-stb`：只包含未打标签的 LAN4，地址为 `192.168.32.1/24`，DHCP 范围为 `.2-.21`。
+- DHCP Option 125 使用用户旧配置中记录的上海电信中兴机顶盒参数。
+- 防火墙将机顶盒网段放在独立区域中，允许机顶盒访问 WAN；未配置机顶盒到主 LAN 的转发。
+- `igmpproxy` 处理机顶盒路径所需的原生组播。
+- `udpxy` 监听 `192.168.31.1:4022`，源接口为 `br-iptv`，最大客户端数为 20，缓冲区为 1 MiB，套接字缓冲区为 4 MiB。
+- 自定义 `/etc/init.d/udpxy` 支持套接字缓冲参数；sysctl 设置为 `rmem_max=8388608`。
 
-Sanitized relevant UCI sections are in `router/snapshots/`. They are a reference and must not be blindly replayed on a different model or firmware.
+经过脱敏的相关 UCI 配置段位于 `router/snapshots/`。这些文件用于参考，不能不经检查就应用到其他型号或固件。
 
-## NAS Services
+## NAS 服务
 
-- HLS: `http://192.168.31.200:8090`, Compose directory `/vol1/1000/dockers/iptv-hls`.
-- EPG: `http://192.168.31.200:8091`, Compose directory `/vol1/1000/dockers/iptv-epg`.
-- Both returned healthy in the last check.
-- HLS reads 113 channel entries from `channels.json`; each source is an HTTP udpxy URL through the router.
-- EPG builds a second M3U that points at the HLS service and an XMLTV file. The last cache had 113 channels, 100 matches and 13,802 programme records.
+- HLS：`http://192.168.31.200:8090`，Compose 目录为 `/vol1/1000/dockers/iptv-hls`。
+- EPG：`http://192.168.31.200:8091`，Compose 目录为 `/vol1/1000/dockers/iptv-epg`。
+- 最后一次检查时，两个服务都处于健康状态。
+- HLS 从 `channels.json` 读取 113 个频道，每个源都是通过路由器访问的 HTTP udpxy 地址。
+- EPG 生成一份指向 HLS 服务的 M3U 和一份 XMLTV。最后一次缓存包含 113 个频道、100 个匹配频道和 13,802 条节目记录。
 
-## EPG Limitation
+## EPG 限制
 
-Current EPG source is the public `https://epg.pw/xmltv/epg_CN.xml.gz`, filtered and name-matched locally. It is not the ZTE box's native Shanghai Telecom EPG. Thirteen channels currently have no mapping; see the live EPG `status.json` endpoint. Channel names, coverage and upstream availability can change.
+当前 EPG 来源是公共地址 `https://epg.pw/xmltv/epg_CN.xml.gz`，在本地筛选并按名称匹配。它不是中兴机顶盒使用的上海电信原生 EPG。目前有 13 个频道没有匹配，详见在线 EPG 的 `status.json` 接口。频道名称、覆盖范围和上游可用性都可能变化。
 
-An earlier explored project can fetch Shanghai Telecom's native list/EPG but requires IPTV user ID, STB SN and MAC and access to the operator private network. The SN has not been recovered/verified, no native fetcher is deployed, and the NAS container is not currently routed through IPTV VLAN. Do not add account/SN/token values to Git.
+此前调研过的项目可以抓取上海电信原生频道列表和 EPG，但它需要 IPTV 用户 ID、机顶盒 SN、MAC，以及运营商专网访问能力。目前尚未获取并验证 SN，也没有部署原生抓取程序；NAS 容器当前也没有被路由到 IPTV VLAN。禁止将账号、SN 或令牌写入 Git。

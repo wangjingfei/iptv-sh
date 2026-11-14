@@ -1,10 +1,10 @@
-# IPTV HLS Docker
+# IPTV HLS Docker 服务
 
-This project converts an udpxy HTTP MPEG-TS stream to on-demand HLS. FFmpeg starts when a player requests a channel and stops after the configured idle timeout.
+本项目将 udpxy 提供的 HTTP MPEG-TS 直播流按需转换为 HLS。播放器请求某个频道时，服务启动对应的 FFmpeg 进程；超过配置的空闲时间后，进程自动停止。
 
-## 1. Configure channels
+## 1. 配置频道
 
-Edit `config/channels.json`. Replace the example multicast address and port with a real channel:
+编辑 `config/channels.json`，将示例组播地址和端口替换为真实频道：
 
 ```json
 {
@@ -17,9 +17,9 @@ Edit `config/channels.json`. Replace the example multicast address and port with
 }
 ```
 
-Channel IDs may contain letters, numbers, `_`, and `-`. Changes are reloaded automatically on the next request. If a source URL changes, the old FFmpeg process is replaced on the next request.
+频道 ID 可以包含字母、数字、`_` 和 `-`。配置变化会在下一次请求时自动加载。如果频道源地址发生变化，下一次请求会停止旧 FFmpeg 进程并使用新地址启动。
 
-## 2. Build and start
+## 2. 构建并启动
 
 ```sh
 docker compose config
@@ -28,7 +28,7 @@ docker compose ps
 docker compose logs -f
 ```
 
-## 3. Test
+## 3. 验证
 
 ```sh
 curl http://127.0.0.1:8090/healthz
@@ -36,32 +36,32 @@ curl http://127.0.0.1:8090/api/status
 curl http://127.0.0.1:8090/playlist.m3u
 ```
 
-LAN playlist URL:
+局域网播放列表地址：
 
 ```text
 http://192.168.31.200:8090/playlist.m3u
 ```
 
-Individual channel URL:
+单个频道地址：
 
 ```text
 http://192.168.31.200:8090/cctv1/index.m3u8
 ```
 
-The first request waits for FFmpeg to create the initial playlist. Later segment requests keep the channel active. The default idle timeout is 60 seconds.
+首次请求会等待 FFmpeg 生成初始播放列表。后续分片请求会保持频道处于活动状态。默认空闲超时时间为 60 秒。
 
-## Storage and networking
+## 存储和网络
 
-- HLS playlists and segments are stored in the container tmpfs at `/run/iptv-hls`.
-- The tmpfs limit is 512 MiB.
-- The container uses Docker bridge networking and publishes only TCP port 8090.
-- No host networking, privileged mode, or GPU device is required because FFmpeg uses stream copy rather than transcoding.
-- The project directory stores only configuration and source files; it does not contain live video segments.
+- HLS 播放列表与分片存放在容器的 `/run/iptv-hls` tmpfs 中。
+- tmpfs 上限为 512 MiB。
+- 容器使用 Docker 桥接网络，只发布 TCP 8090 端口。
+- FFmpeg 使用流复制而非转码，因此不需要宿主机网络、特权模式或 GPU 设备。
+- 项目目录只存放配置和源代码，不保存直播视频分片。
 
-## Stop and remove
+## 停止并移除
 
 ```sh
 docker compose down
 ```
 
-This stops all FFmpeg processes and discards all temporary HLS files.
+该命令会停止所有 FFmpeg 进程，并丢弃全部临时 HLS 文件。

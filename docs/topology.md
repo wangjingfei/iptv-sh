@@ -1,44 +1,44 @@
-# Topology
+# 网络拓扑
 
 ```text
-                         regular Internet WAN
-                                  |
-                       GL-MT6000 / ImmortalWrt
-                       LAN 192.168.31.1/24
-                      /                     \
-             main LAN / Wi-Fi                LAN5.85 tagged
-                  |                                 |
-           FnOS NAS .200                   optical modem IPTV
-                  |
-       +----------+-----------+
-       |                      |
- iptv-hls :8090          iptv-epg :8091
-       |                      | playlist + XMLTV
-       +----------+-----------+
-                  |
-       udpxy 192.168.31.1:4022
-                  |
-       IPTV multicast on VLAN 85
+                         普通互联网 WAN
+                               |
+                    GL-MT6000 / ImmortalWrt
+                    LAN 192.168.31.1/24
+                   /                     \
+          主局域网 / Wi-Fi                带标签的 LAN5.85
+                |                              |
+         飞牛 NAS .200                    光猫 IPTV 端口
+                |
+      +---------+----------+
+      |                    |
+ iptv-hls :8090       iptv-epg :8091
+      |                    | 播放列表 + XMLTV
+      +---------+----------+
+                |
+      udpxy 192.168.31.1:4022
+                |
+       VLAN 85 上的 IPTV 组播
 
- LAN4 hybrid port:
-   untagged -> br-stb 192.168.32.0/24 -> ZTE STB normal network + Option 125
-   tagged 85 -> lan4.85 -> br-iptv -> lan5.85 -> ZTE STB operator IPTV network
+ LAN4 混合端口：
+   未打标签 -> br-stb 192.168.32.0/24 -> 中兴机顶盒普通网络 + Option 125
+   VLAN 85 标签 -> lan4.85 -> br-iptv -> lan5.85 -> 中兴机顶盒运营商 IPTV 专网
 ```
 
-## Playback Flows
+## 播放路径
 
-### NAS HLS playback
+### NAS HLS 播放
 
-`TV/player -> NAS:8090/{channel-id}/index.m3u8 -> FFmpeg stream copy -> router:4022/rtp/<group>:<port>/ -> VLAN 85 multicast`
+`电视/播放器 -> NAS:8090/{channel-id}/index.m3u8 -> FFmpeg 流复制 -> 路由器:4022/rtp/<组播组>:<端口>/ -> VLAN 85 组播`
 
-FFmpeg starts only when the channel is requested and writes temporary HLS segments to container tmpfs. The configured channel sources should be reviewed before copying to another network.
+只有请求频道时才会启动 FFmpeg，临时 HLS 分片写入容器 tmpfs。将频道配置复制到其他网络前，应重新检查所有频道源地址。
 
-### EPG-enabled playback
+### 带 EPG 的播放
 
-`TV/player -> NAS:8091/playlist.m3u -> NAS:8091/epg.xml for guide data`
+`电视/播放器 -> NAS:8091/playlist.m3u -> NAS:8091/epg.xml 获取节目单`
 
-Each playlist video URL points back to NAS:8090. The EPG service does not relay media and should not add meaningful load during playback.
+播放列表中的每个视频地址都指回 NAS 的 8090 端口。EPG 服务不转发视频，因此播放期间不应产生明显负载。
 
-### ZTE set-top box
+### 中兴机顶盒
 
-The ZTE box receives a local lease on the untagged path and its operator VLAN 85 path is bridged at layer 2. IPTV broadcast traffic remains on the IPTV VLAN and is not routed into the main LAN.
+中兴机顶盒通过未打标签网络取得本地租约，同时通过二层网桥访问运营商 VLAN 85。IPTV 广播流量保持在 IPTV VLAN 中，不会被路由到主局域网。
