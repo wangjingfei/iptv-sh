@@ -3,7 +3,6 @@
 package com.wangjingfei.hometv.ui
 
 import android.content.Context
-import android.view.KeyEvent
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
@@ -13,7 +12,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.platform.app.InstrumentationRegistry
 import com.wangjingfei.hometv.MainActivity
 import com.wangjingfei.hometv.data.AppDatabase
 import com.wangjingfei.hometv.data.ChannelEntity
@@ -29,7 +27,6 @@ import org.junit.rules.TestRule
 
 class RemoteNavigationTest {
     private val composeRule = createAndroidComposeRule<MainActivity>()
-    private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @get:Rule
     val rules: TestRule = RuleChain
@@ -84,7 +81,9 @@ class RemoteNavigationTest {
     }
 
     private fun pressBack() {
-        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        composeRule.runOnUiThread {
+            composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        }
         composeRule.waitForIdle()
     }
 
