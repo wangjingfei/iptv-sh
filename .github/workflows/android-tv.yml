@@ -85,7 +85,7 @@ jobs:
       - name: Run Android device tests
         uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
-          api-level: 35
+          api-level: 34
           target: android-tv
           arch: x86
           disable-animations: true
