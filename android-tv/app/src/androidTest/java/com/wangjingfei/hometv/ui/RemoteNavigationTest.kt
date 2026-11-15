@@ -94,12 +94,14 @@ class RemoteNavigationTest {
         private lateinit var originalConfig: SourceConfig
         private var originalLastChannelId: String? = null
         private var originalLastSyncAt: Long = 0L
+        private var originalTestChannel: ChannelEntity? = null
 
         override fun before() = runBlocking {
             originalConfig = settings.config.first()
             originalLastChannelId = settings.lastChannelId.first()
             originalLastSyncAt = settings.lastSyncAt.first()
             withDatabase { database ->
+                originalTestChannel = database.iptvDao().getChannels().firstOrNull { it.id == TEST_CHANNEL_ID }
                 database.iptvDao().upsertChannels(
                     listOf(
                         ChannelEntity(
@@ -119,10 +121,15 @@ class RemoteNavigationTest {
 
         override fun after() = runBlocking {
             withDatabase { database ->
-                database.openHelper.writableDatabase.execSQL(
-                    "DELETE FROM channels WHERE id = ?",
-                    arrayOf(TEST_CHANNEL_ID),
-                )
+                val original = originalTestChannel
+                if (original == null) {
+                    database.openHelper.writableDatabase.execSQL(
+                        "DELETE FROM channels WHERE id = ?",
+                        arrayOf(TEST_CHANNEL_ID),
+                    )
+                } else {
+                    database.iptvDao().upsertChannels(listOf(original))
+                }
             }
             settings.saveConfig(originalConfig.playlistUrl, originalConfig.epgUrl, originalConfig.setupComplete)
             originalLastChannelId?.let { settings.setLastChannel(it) } ?: settings.clearLastChannel()
