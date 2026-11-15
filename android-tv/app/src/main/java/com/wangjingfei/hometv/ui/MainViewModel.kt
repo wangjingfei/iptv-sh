@@ -61,6 +61,7 @@ data class MainUiState(
     val isTestingSources: Boolean = false,
     val testedSource: SourceProbe? = null,
 ) {
+    val shouldAutoHideControls: Boolean get() = playbackError == null
     val groups: List<String> get() = listOf("全部", "收藏", "最近") + channels.map { it.group }.distinct()
     val visibleChannels: List<Channel> get() {
         val grouped = when (selectedGroup) {
@@ -93,6 +94,8 @@ class MainViewModel @Inject constructor(
     private var switchJob: Job? = null
     private var retryJob: Job? = null
     private var bufferingJob: Job? = null
+    private var firstFrameJob: Job? = null
+    private var firstFrameChannelId: String? = null
     private var retryCount = 0
 
     init {
@@ -216,7 +219,10 @@ class MainViewModel @Inject constructor(
     }
 
     fun openHome() {
-        if (_uiState.value.screen == AppScreen.PLAYER) playerManager.stop()
+        if (_uiState.value.screen == AppScreen.PLAYER) {
+            cancelPendingPlayback()
+            playerManager.stop()
+        }
         _uiState.value = _uiState.value.copy(screen = AppScreen.HOME, controlsVisible = false)
     }
     fun openSettings() { _uiState.value = _uiState.value.copy(screen = AppScreen.SETTINGS) }
@@ -227,7 +233,7 @@ class MainViewModel @Inject constructor(
         switchJob?.cancel()
         retryJob?.cancel()
         retryCount = 0
-        playerManager.play(channel)
+        startPlayback(channel)
         viewModelScope.launch { repository.markWatched(channel.id) }
         _uiState.value = _uiState.value.copy(screen = AppScreen.PLAYER, selectedChannel = channel, controlsVisible = true, playbackError = null)
         scheduleControlsHide()
@@ -239,12 +245,13 @@ class MainViewModel @Inject constructor(
         val index = channels.indexOfFirst { it.id == _uiState.value.selectedChannel?.id }.coerceAtLeast(0)
         val candidate = channels[(index + delta + channels.size) % channels.size]
         retryJob?.cancel()
+        cancelFirstFrameTimeout()
         retryCount = 0
         _uiState.value = _uiState.value.copy(selectedChannel = candidate, controlsVisible = true, playbackError = null)
         switchJob?.cancel()
         switchJob = viewModelScope.launch {
             delay(350)
-            playerManager.play(candidate)
+            startPlayback(candidate)
             repository.markWatched(candidate.id)
             scheduleControlsHide()
         }
@@ -254,6 +261,8 @@ class MainViewModel @Inject constructor(
     fun retry() {
         retryJob?.cancel()
         retryCount = 0
+        _uiState.value = _uiState.value.copy(playbackError = null)
+        armFirstFrameTimeout(_uiState.value.selectedChannel?.id)
         playerManager.retry()
     }
     fun toggleControls() {
@@ -350,16 +359,23 @@ class MainViewModel @Inject constructor(
     }
 
     fun openDiagnostics() {
+        cancelPendingPlayback()
         playerManager.stop()
         _uiState.value = _uiState.value.copy(screen = AppScreen.SETTINGS)
         runDiagnostics()
     }
 
-    fun pauseForBackground() = playerManager.stop()
-    fun resumeAfterForeground() {
-        if (_uiState.value.screen == AppScreen.PLAYER) _uiState.value.selectedChannel?.let(playerManager::play)
+    fun pauseForBackground() {
+        cancelPendingPlayback()
+        playerManager.stop()
     }
-    fun releasePlayer() = playerManager.release()
+    fun resumeAfterForeground() {
+        if (_uiState.value.screen == AppScreen.PLAYER) _uiState.value.selectedChannel?.let(::startPlayback)
+    }
+    fun releasePlayer() {
+        cancelPendingPlayback()
+        playerManager.release()
+    }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_READY) retryCount = 0
@@ -376,6 +392,8 @@ class MainViewModel @Inject constructor(
     }
 
     override fun onPlayerError(error: PlaybackException) {
+        cancelFirstFrameTimeout()
+        controlsJob?.cancel()
         val httpStatus = generateSequence(error as Throwable) { it.cause }
             .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
             .firstOrNull()
@@ -394,22 +412,80 @@ class MainViewModel @Inject constructor(
             retryJob = viewModelScope.launch {
                 _uiState.value = _uiState.value.copy(playbackError = "${failure.detail}；${delayMillis / 1000} 秒后第 $retryCount/${failure.retryDelaysMillis.size} 次重试")
                 delay(delayMillis)
+                armFirstFrameTimeout(_uiState.value.selectedChannel?.id)
                 playerManager.retry()
             }
         }
     }
 
+    override fun onRenderedFirstFrame() {
+        if (playerManager.player.currentMediaItem?.mediaId != firstFrameChannelId) return
+        cancelFirstFrameTimeout()
+        _uiState.value = _uiState.value.copy(showBuffering = false, playbackError = null)
+        if (_uiState.value.controlsVisible) scheduleControlsHide()
+    }
+
+    private fun startPlayback(channel: Channel) {
+        val alreadyPlaying = playerManager.currentChannel.value?.id == channel.id &&
+            playerManager.player.playbackState == Player.STATE_READY
+        if (alreadyPlaying) cancelFirstFrameTimeout() else armFirstFrameTimeout(channel.id)
+        playerManager.play(channel)
+    }
+
+    private fun armFirstFrameTimeout(channelId: String?) {
+        cancelFirstFrameTimeout()
+        if (channelId == null) return
+        firstFrameChannelId = channelId
+        firstFrameJob = viewModelScope.launch {
+            delay(FIRST_FRAME_TIMEOUT_MS)
+            val isCurrentChannel = firstFrameChannelId == channelId &&
+                playerManager.player.currentMediaItem?.mediaId == channelId
+            if (!isCurrentChannel || _uiState.value.screen != AppScreen.PLAYER) return@launch
+            firstFrameJob = null
+            firstFrameChannelId = null
+            playerManager.stop()
+            val failure = PlaybackErrorPolicy.firstFrameTimeout()
+            controlsJob?.cancel()
+            _uiState.value = _uiState.value.copy(
+                showBuffering = false,
+                controlsVisible = true,
+                playbackError = failure.detail,
+                lastPlaybackFailure = failure,
+                lastPlaybackFailureAt = System.currentTimeMillis(),
+            )
+        }
+    }
+
+    private fun cancelFirstFrameTimeout() {
+        firstFrameJob?.cancel()
+        firstFrameJob = null
+        firstFrameChannelId = null
+    }
+
+    private fun cancelPendingPlayback() {
+        switchJob?.cancel()
+        switchJob = null
+        retryJob?.cancel()
+        retryJob = null
+        cancelFirstFrameTimeout()
+    }
+
     private fun scheduleControlsHide() {
         controlsJob?.cancel()
-        controlsJob = viewModelScope.launch { delay(5_000); hideControls() }
+        controlsJob = viewModelScope.launch {
+            delay(5_000)
+            if (_uiState.value.shouldAutoHideControls) hideControls()
+        }
     }
 
     override fun onCleared() {
+        cancelPendingPlayback()
         playerManager.player.removeListener(this)
     }
 
     private companion object {
         const val REFRESH_INTERVAL_MS = 6 * 60 * 60_000L
+        const val FIRST_FRAME_TIMEOUT_MS = 30_000L
         val DIAGNOSTIC_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(ZoneId.systemDefault())
     }

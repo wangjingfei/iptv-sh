@@ -384,7 +384,16 @@ private fun PlayerScreen(state: MainUiState, viewModel: MainViewModel) {
             },
             modifier = Modifier.fillMaxSize(),
         )
-        if (state.showBuffering) CircularProgressIndicator(Modifier.align(Alignment.Center).size(54.dp), color = Mint)
+        if (state.showBuffering) {
+            Column(
+                Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                CircularProgressIndicator(Modifier.size(54.dp), color = Mint)
+                Text(stringResource(R.string.opening_channel), color = TextPrimary, fontSize = 18.sp)
+            }
+        }
         AnimatedVisibility(state.controlsVisible, modifier = Modifier.fillMaxSize()) {
             PlayerOverlay(state, viewModel, channel, controlsFocus)
         }
@@ -482,7 +491,10 @@ private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel:
                     Spacer(Modifier.width(8.dp)); Text(it, color = ErrorRed, modifier = Modifier.weight(1f))
                     Button(onClick = viewModel::retry) { Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.retry)) }
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = viewModel::openDiagnostics, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) { Text(stringResource(R.string.view_diagnostics)) }
+                    Button(
+                        onClick = viewModel::openDiagnostics,
+                        colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = TextPrimary),
+                    ) { Text(stringResource(R.string.view_diagnostics)) }
                 }
             }
         }
