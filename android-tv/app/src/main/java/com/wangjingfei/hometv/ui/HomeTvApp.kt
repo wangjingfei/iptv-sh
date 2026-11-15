@@ -448,16 +448,16 @@ private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel:
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(channel.number.toString().padStart(3, '0'), color = Mint, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(16.dp))
-                Text(channel.name, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text(channel.name, color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { viewModel.toggleFavorite(channel.id) }) {
                     Icon(if (channel.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, stringResource(R.string.favorite), tint = if (channel.favorite) Warm else TextPrimary)
                 }
-                Button(onClick = viewModel::cycleAudio, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                Button(onClick = viewModel::cycleAudio, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = TextPrimary)) {
                     Icon(Icons.Default.Headphones, null); Spacer(Modifier.width(6.dp)); Text(state.audioLabel ?: stringResource(R.string.default_audio))
                 }
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = viewModel::toggleSubtitles, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                Button(onClick = viewModel::toggleSubtitles, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised, contentColor = TextPrimary)) {
                     Icon(Icons.Default.Subtitles, null); Spacer(Modifier.width(6.dp)); Text(stringResource(if (state.subtitlesEnabled) R.string.subtitles_on else R.string.subtitles_off))
                 }
             }
@@ -466,7 +466,7 @@ private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel:
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
-                    Text(now?.title ?: stringResource(R.string.live_now), fontSize = 19.sp)
+                    Text(now?.title ?: stringResource(R.string.live_now), color = TextPrimary, fontSize = 19.sp)
                     if (now?.stopAt != null) {
                         Spacer(Modifier.height(7.dp))
                         val progress = ((System.currentTimeMillis() - now.startAt).toFloat() / (now.stopAt - now.startAt).coerceAtLeast(1)).coerceIn(0f, 1f)
