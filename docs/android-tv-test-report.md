@@ -2,21 +2,22 @@
 
 ## 当前结论
 
-`0.3.0` 开发版已经具备可重复构建的 Gradle 工程、单元测试、显式数据库迁移和可侧载 Debug APK。当前结论仅覆盖本地构建与家庭网络在线接口，不等同于物理电视验收完成。
+`0.4.0` 开发版新增局域网手机扫码配置，并继续具备可重复构建的 Gradle 工程、单元测试、显式数据库迁移和可侧载 Debug APK。当前扫码结论仅覆盖 JVM HTTP 流程和模拟器二维码弹窗；实体手机与物理电视的同网段访问仍待验证。
 
 ## 2026-11-15 开发验证
 
 | 项目 | 结果 | 说明 |
 | --- | --- | --- |
 | Kotlin/资源/Hilt/Room 编译 | 通过 | AGP 8.13.2、Gradle 8.13、Android 36 |
-| JVM 单元测试 | 通过 | 31 项，覆盖 112 频道导入、14,000 条 XMLTV 性能、来源探测、解码/首帧超时错误策略、错误浮层保持、实际播放状态常亮规则、遥控器数字键和媒体键映射、小频道列表快捷栏去重、URL 脱敏、条件请求、损坏 XML、来源限制、分组和首页筛选 |
+| JVM 单元测试 | 通过 | 35 项，覆盖 112 频道导入、14,000 条 XMLTV 性能、来源探测、手机设置 IPv4 子网判断与临时 HTTP 服务、解码/首帧超时错误策略、错误浮层保持、实际播放状态常亮规则、遥控器数字键和媒体键映射、小频道列表快捷栏去重、URL 脱敏、条件请求、损坏 XML、来源限制、分组和首页筛选 |
 | Room 迁移/事务测试 | 通过 | GitHub API 35 通用镜像实际执行 5 项；覆盖 v1→v3 迁移、收藏归档恢复和清空 EPG 后强制重新下载 |
 | 首次设置 DPAD 焦点 | 通过 | GitHub API 35 通用镜像从完整 Activity 发送方向键，验证播放列表 → XMLTV → 测试连接；测试在 Activity 启动前临时重置首次设置状态并在结束后恢复，可在已配置过的设备上重复运行且不改变原有来源配置；测试按钮使用 TV Material 焦点实现 |
-| Debug APK | 通过 | `com.wangjingfei.hometv.debug`，版本 `0.3.0-debug`，最低 API 23 |
+| 手机扫码设置 | 本地自动化通过，实机未验证 | JVM 实际启动临时 HTTP 服务并验证令牌、HTML 转义、提交、状态回写、过期和请求体限制；Android TV 设备测试验证首次设置页可以启动会话并显示本地二维码。实体手机、电视和 AP 隔离环境仍需实测 |
+| Debug APK | 通过 | `com.wangjingfei.hometv.debug`，版本 `0.4.0-debug`，最低 API 23 |
 | Release 构建、R8 与签名链路 | 通过 | 已生成未签名 release APK；一次性 JKS 的 v1/v2 签名和证书读取通过，真实 release keystore 升级仍待验证 |
 | 仓库静态检查 | 通过 | Python、Compose、秘密特征和 Android TV 工程结构 |
 | 当前后端快速在线检查 | 通过 | 112 个频道，抽测组播/HLS 实际播放，EPG 匹配 100/112 |
-| 本机 Android TV 模拟器 | 通过 | Android TV API 36 / Android 16 ARM64 镜像；Debug APK 安装及 TV 启动器启动通过，7 项 `connectedDebugAndroidTest` 全部通过；连接 NAS 实际导入 112 个频道和 11,304 条节目，并从上海新闻综合 HLS 解码出视频画面 |
+| 本机 Android TV 模拟器 | 通过 | Android TV API 36 / Android 16 ARM64 镜像；Debug APK 安装及 TV 启动器启动通过，8 项 `connectedDebugAndroidTest` 全部通过，其中新增手机设置二维码弹窗测试；连接 NAS 实际导入 112 个频道和 11,304 条节目，并从上海新闻综合 HLS 解码出视频画面 |
 | 物理电视安装/启动器展示 | 未验证 | 当前 ADB 没有连接设备 |
 | 遥控器全路径 | 模拟器关键路径通过，实体电视未验证 | 首次设置三步 DPAD 路径已在 API 35 模拟器通过；API 36 模拟器从完整 Activity 注入 `901` 数字键并验证首页焦点跳转，再验证当前频道 → 分组 → 设置、播放器浮层与两级返回、设置返回按钮 → M3U → XMLTV → 返回首页，并在结束后恢复原配置、清理测试频道。完整实体遥控器手感仍需电视验证 |
 | 普通频道解码 | 通过 | 本机 Android TV API 36 模拟器可从上海新闻综合 HLS 解码并显示动态画面 |
@@ -27,7 +28,7 @@
 | 连续播放 1 小时/连续换台 | 未验证 | 需要目标电视与 NAS 联合观察 |
 | Home/返回后的 HLS 释放与恢复 | 模拟器通过，实体电视未验证 | API 36 TV 模拟器按 Home 后播放器变为 `NONE`，音频焦点和有效亮屏占用均已释放；回到仍打开的播放页恢复当前频道的实体电视行为仍待验证 |
 | 初次来源测试流程 | 自动化部分通过，未实机验证 | M3U、XMLTV 和真实 HLS 样例探测通过后才允许应用来源；修改输入会使旧测试失效；三步焦点路径已自动化 |
-| GitHub Actions 自动构建 | 通过 | 运行 `43706639221` 的 build 与 instrumentation 作业均通过；仓库检查、31 项 JVM 测试、Android 构建、Release 签名路径和 API 34 Android TV 1080p 镜像上的 7 项设备测试通过 |
+| GitHub Actions 自动构建 | 通过 | 运行 `43711912704` 的 build 与 instrumentation 作业均通过；仓库检查、35 项 JVM 测试、Android 构建、Release 签名路径和 API 34 Android TV 1080p 镜像上的 8 项设备测试通过 |
 | release 签名、升级和回滚 | 部分通过 | 一次性 JKS 的签名构建和 APK 完整性已验证；尚未配置用户持有的 release keystore，也未在同一电视验证升级/回滚 |
 
 本地构建命令：
@@ -76,4 +77,4 @@ make android-device-check
 ./scripts/verify-android-device.sh --with-tests
 ```
 
-GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43706639221`：完整构建、31 项 JVM 测试、临时 release 签名校验和 API 34 Android TV 1080p 镜像的 7 项设备测试均通过，并成功上传 APK 与测试报告。7 项包括 5 项 Room/数据行为测试、1 项完整 Activity 的首次设置 DPAD 焦点测试，以及 1 项首页注入 `901` 数字键、播放器两级返回和设置页关键路径测试；系统返回通过 Activity 的 `OnBackPressedDispatcher` 验证，实体遥控器手感仍归入实机验收。本机 Android TV API 36 模拟器也已通过同一组 7 项设备测试和启动冒烟检查。后续提交仍以各自运行结果为准。构建与 Lint 使用两个串行的 `--no-parallel` Gradle 调用，避免 Lint 在 Hilt release 源码重建期间读取到已替换的中间文件。
+GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43711912704`：完整构建、35 项 JVM 测试、临时 release 签名校验和 API 34 Android TV 1080p 镜像的 8 项设备测试均通过，并成功上传 APK 与测试报告。8 项包括 5 项 Room/数据行为测试、2 项完整 Activity 的首次设置 DPAD/手机二维码测试，以及 1 项首页注入 `901` 数字键、播放器两级返回和设置页关键路径测试；系统返回通过 Activity 的 `OnBackPressedDispatcher` 验证，实体遥控器和手机实网扫码仍归入实机验收。本机 Android TV API 36 模拟器也已通过同一组 8 项设备测试和启动冒烟检查。后续提交仍以各自运行结果为准。构建与 Lint 使用两个串行的 `--no-parallel` Gradle 调用，避免 Lint 在 Hilt release 源码重建期间读取到已替换的中间文件。

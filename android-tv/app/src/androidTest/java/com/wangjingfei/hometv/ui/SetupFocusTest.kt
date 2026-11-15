@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import androidx.test.core.app.ApplicationProvider
 import com.wangjingfei.hometv.MainActivity
 import com.wangjingfei.hometv.data.SettingsRepository
@@ -47,6 +48,25 @@ class SetupFocusTest {
             keyUp(Key.DirectionDown)
         }
         composeRule.onNodeWithTag("setup-test").assertIsFocused()
+    }
+
+    @Test
+    fun setupScreenCanOpenPhoneQrSession() {
+        composeRule.onNodeWithTag("setup-playlist").performKeyInput {
+            pressKey(Key.DirectionDown)
+        }
+        composeRule.onNodeWithTag("setup-epg").performKeyInput {
+            pressKey(Key.DirectionDown)
+        }
+        composeRule.onNodeWithTag("setup-test").performKeyInput {
+            pressKey(Key.DirectionDown)
+        }
+        composeRule.onNodeWithTag("setup-phone").assertIsFocused().performKeyInput {
+            pressKey(Key.Enter)
+        }
+        composeRule.waitUntilAtLeastOneExists(androidx.compose.ui.test.hasTestTag("remote-setup-qr"), 5_000)
+        composeRule.onNodeWithTag("remote-setup-qr").assertIsDisplayed()
+        composeRule.onNodeWithText("等待手机提交").assertIsDisplayed()
     }
 
     private class ResetSetupRule : ExternalResource() {

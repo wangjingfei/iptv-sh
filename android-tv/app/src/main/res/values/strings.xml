@@ -8,6 +8,9 @@
     <string name="test_connection">测试连接</string>
     <string name="save_and_enter">保存并进入直播</string>
     <string name="apply_tested_source">应用已测试来源</string>
+    <string name="phone_setup">手机设置</string>
+    <string name="phone_setup_qr">手机设置二维码</string>
+    <string name="phone_setup_expiry">链接在十分钟后失效</string>
     <string name="use_cache">使用本地缓存进入</string>
     <string name="sync">同步</string>
     <string name="settings">设置</string>

@@ -19,6 +19,10 @@ import com.wangjingfei.hometv.data.networkOrigin
 import com.wangjingfei.hometv.player.PlayerManager
 import com.wangjingfei.hometv.player.PlaybackErrorPolicy
 import com.wangjingfei.hometv.player.PlaybackFailure
+import com.wangjingfei.hometv.remote.RemoteSetupCoordinator
+import com.wangjingfei.hometv.remote.RemoteSetupPhase
+import com.wangjingfei.hometv.remote.RemoteSetupSession
+import com.wangjingfei.hometv.remote.RemoteSourceSubmission
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import java.net.URI
@@ -34,6 +38,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 enum class AppScreen { SETUP, HOME, PLAYER, SETTINGS }
+
+data class SourceDraft(val playlistUrl: String, val epgUrl: String)
 
 data class MainUiState(
     val screen: AppScreen = AppScreen.SETUP,
@@ -64,6 +70,9 @@ data class MainUiState(
     val lastSyncWarning: String? = null,
     val isTestingSources: Boolean = false,
     val testedSource: SourceProbe? = null,
+    val sourceDraft: SourceDraft? = null,
+    val sourceDraftVersion: Long = 0L,
+    val remoteSetup: RemoteSetupSession? = null,
 ) {
     val shouldKeepScreenOn: Boolean get() = isPlaying
     val isPlaybackActive: Boolean get() = playWhenReady && playbackError == null
@@ -100,6 +109,7 @@ class MainViewModel @Inject constructor(
     private val settings: SettingsRepository,
     val playerManager: PlayerManager,
     private val networkMonitor: NetworkMonitor,
+    private val remoteSetupCoordinator: RemoteSetupCoordinator,
 ) : ViewModel(), Player.Listener {
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -109,6 +119,7 @@ class MainViewModel @Inject constructor(
     private var retryJob: Job? = null
     private var bufferingJob: Job? = null
     private var firstFrameJob: Job? = null
+    private var remoteSetupExpiryJob: Job? = null
     private var firstFrameChannelId: String? = null
     private var retryCount = 0
 
@@ -142,6 +153,14 @@ class MainViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            remoteSetupCoordinator.session.collect { session ->
+                _uiState.value = _uiState.value.copy(remoteSetup = session)
+            }
+        }
+        viewModelScope.launch {
+            remoteSetupCoordinator.submissions.collect(::handleRemoteSubmission)
+        }
+        viewModelScope.launch {
             repository.channels.collect { channels ->
                 val current = _uiState.value
                 _uiState.value = current.copy(
@@ -170,30 +189,35 @@ class MainViewModel @Inject constructor(
 
     fun testSources(playlistUrl: String, epgUrl: String) {
         if (_uiState.value.isTestingSources || _uiState.value.isSyncing) return
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isTestingSources = true, testedSource = null, message = null)
-            runCatching { repository.probe(playlistUrl, epgUrl) }
-                .onSuccess { probe ->
-                    val epgSummary = probe.programmeCount?.let { "，节目单 $it 条" } ?: "，节目单不可用或未配置"
-                    _uiState.value = _uiState.value.copy(
-                        isTestingSources = false,
-                        testedSource = probe,
-                        message = probe.warning ?: "测试通过：${probe.channelCount} 个频道$epgSummary，样例 HLS 可播放",
-                    )
-                }
-                .onFailure {
-                    _uiState.value = _uiState.value.copy(
-                        isTestingSources = false,
-                        testedSource = null,
-                        message = it.message ?: "来源测试失败",
-                    )
-                }
-        }
+        viewModelScope.launch { probeSources(playlistUrl, epgUrl) }
     }
 
     fun applyTestedSource() {
         val probe = _uiState.value.testedSource ?: return
+        stopRemoteSetup()
         sync(probe.playlistUrl, probe.resolvedEpgUrl)
+    }
+
+    fun startRemoteSetup(playlistUrl: String, epgUrl: String) {
+        val result = remoteSetupCoordinator.start(playlistUrl, epgUrl)
+        result.onSuccess { session ->
+            remoteSetupExpiryJob?.cancel()
+            remoteSetupExpiryJob = viewModelScope.launch {
+                delay((session.expiresAt - System.currentTimeMillis()).coerceAtLeast(0L))
+                if (_uiState.value.remoteSetup?.id == session.id) {
+                    remoteSetupCoordinator.stop()
+                    _uiState.value = _uiState.value.copy(message = "手机设置已过期，请重新打开二维码")
+                }
+            }
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(message = error.message ?: "无法启动手机设置")
+        }
+    }
+
+    fun stopRemoteSetup() {
+        remoteSetupExpiryJob?.cancel()
+        remoteSetupExpiryJob = null
+        remoteSetupCoordinator.stop()
     }
 
     fun invalidateSourceTest() {
@@ -233,6 +257,7 @@ class MainViewModel @Inject constructor(
     }
 
     fun openHome() {
+        stopRemoteSetup()
         if (_uiState.value.screen == AppScreen.PLAYER) {
             cancelPendingPlayback()
             playerManager.stop()
@@ -244,6 +269,7 @@ class MainViewModel @Inject constructor(
     fun setSearch(query: String) { _uiState.value = _uiState.value.copy(searchQuery = query) }
 
     fun play(channel: Channel) {
+        stopRemoteSetup()
         switchJob?.cancel()
         retryJob?.cancel()
         retryCount = 0
@@ -425,6 +451,7 @@ class MainViewModel @Inject constructor(
     }
 
     fun pauseForBackground() {
+        stopRemoteSetup()
         cancelPendingPlayback()
         playerManager.stop()
     }
@@ -546,8 +573,50 @@ class MainViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        stopRemoteSetup()
         cancelPendingPlayback()
         playerManager.player.removeListener(this)
+    }
+
+    private fun handleRemoteSubmission(submission: RemoteSourceSubmission) {
+        if (remoteSetupCoordinator.session.value?.id != submission.sessionId) return
+        if (_uiState.value.isTestingSources || _uiState.value.isSyncing) {
+            remoteSetupCoordinator.updateResult(submission.sessionId, RemoteSetupPhase.ERROR, "电视正在执行另一项任务，请稍后重试")
+            return
+        }
+        _uiState.value = _uiState.value.copy(
+            sourceDraft = SourceDraft(submission.playlistUrl, submission.epgUrl),
+            sourceDraftVersion = _uiState.value.sourceDraftVersion + 1,
+        )
+        viewModelScope.launch { probeSources(submission.playlistUrl, submission.epgUrl, submission.sessionId) }
+    }
+
+    private suspend fun probeSources(playlistUrl: String, epgUrl: String, remoteSessionId: String? = null) {
+        _uiState.value = _uiState.value.copy(isTestingSources = true, testedSource = null, message = null)
+        runCatching { repository.probe(playlistUrl, epgUrl) }
+            .onSuccess { probe ->
+                val epgSummary = probe.programmeCount?.let { "，节目单 $it 条" } ?: "，节目单不可用或未配置"
+                val message = probe.warning ?: "测试通过：${probe.channelCount} 个频道$epgSummary，样例 HLS 可播放"
+                _uiState.value = _uiState.value.copy(
+                    isTestingSources = false,
+                    testedSource = probe,
+                    message = message,
+                )
+                if (remoteSessionId != null) {
+                    remoteSetupCoordinator.updateResult(remoteSessionId, RemoteSetupPhase.SUCCESS, message)
+                }
+            }
+            .onFailure { error ->
+                val message = error.message ?: "来源测试失败"
+                _uiState.value = _uiState.value.copy(
+                    isTestingSources = false,
+                    testedSource = null,
+                    message = message,
+                )
+                if (remoteSessionId != null) {
+                    remoteSetupCoordinator.updateResult(remoteSessionId, RemoteSetupPhase.ERROR, message)
+                }
+            }
     }
 
     private companion object {
