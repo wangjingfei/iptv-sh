@@ -87,7 +87,7 @@ jobs:
         with:
           api-level: 35
           target: android-tv
-          arch: x86_64
+          arch: x86
           disable-animations: true
           script: cd android-tv && ./gradlew connectedDebugAndroidTest
 
