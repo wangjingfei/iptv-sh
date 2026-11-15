@@ -80,6 +80,14 @@ data class MainUiState(
 
     fun nextProgramme(channelId: String, now: Long = System.currentTimeMillis()): Programme? =
         programmes.firstOrNull { it.channelId == channelId && it.startAt > now }
+
+    fun quickChannels(channelId: String, radius: Int = 2): List<Channel> {
+        if (channels.isEmpty()) return emptyList()
+        val currentIndex = channels.indexOfFirst { it.id == channelId }.coerceAtLeast(0)
+        return (-radius..radius)
+            .map { channels[(currentIndex + it + channels.size) % channels.size] }
+            .distinctBy { it.id }
+    }
 }
 
 @HiltViewModel
