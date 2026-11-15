@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
@@ -207,106 +209,140 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
     var previewChannelId by remember { mutableStateOf<String?>(null) }
     val gridState = rememberLazyGridState()
     val visibleChannels = state.visibleChannels
-    val focusIndex = visibleChannels.indexOfFirst { it.id == state.lastChannelId }.takeIf { it >= 0 } ?: 0
-    Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(start = 44.dp, end = 44.dp, top = 28.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.LiveTv, null, tint = Mint, modifier = Modifier.size(34.dp))
-                Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.app_name), fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
-                SearchField(state.searchQuery, viewModel::setSearch)
-                Spacer(Modifier.width(12.dp))
-                IconButton(onClick = { viewModel.sync() }, enabled = !state.isSyncing) {
-                    if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, stringResource(R.string.sync))
-                }
-                IconButton(
-                    onClick = viewModel::openSettings,
-                    modifier = Modifier.focusRequester(settingsFocus)
-                        .focusProperties { down = selectedGroupFocus }
-                        .testTag("home-settings"),
-                ) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
-            }
-            state.message?.let { Text(it, color = TextMuted, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp)) }
-            if (state.lastEpgSyncAt == 0L || System.currentTimeMillis() - state.lastEpgSyncAt > 12 * 60 * 60_000L) {
-                Text(stringResource(R.string.epg_stale), color = Warm, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp))
-            }
-            Text(
-                stringResource(
-                    R.string.epg_last_sync,
-                    if (state.lastEpgSyncAt == 0L) stringResource(R.string.never_synced) else formatDateTime(state.lastEpgSyncAt),
-                ),
-                color = TextMuted,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            Spacer(Modifier.height(20.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(state.groups) { group ->
-                    GroupButton(
-                        label = group,
-                        selected = group == state.selectedGroup,
-                        onClick = { viewModel.selectGroup(group) },
-                        modifier = if (group == state.selectedGroup) {
-                            Modifier.focusRequester(selectedGroupFocus)
-                                .focusProperties {
-                                    up = settingsFocus
-                                    if (visibleChannels.isNotEmpty()) down = firstCardFocus
-                                }
-                                .testTag("home-selected-group")
-                        } else {
-                            Modifier
-                        },
-                    )
-                }
-            }
-            Spacer(Modifier.height(18.dp))
-            if (visibleChannels.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(if (state.searchQuery.isBlank()) R.string.group_empty else R.string.search_empty), color = TextMuted, fontSize = 20.sp)
-                }
-            } else {
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(4),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        state = gridState,
-                        modifier = Modifier.weight(0.72f).fillMaxHeight(),
-                    ) {
-                        items(visibleChannels, key = { it.id }) { channel ->
-                            ChannelCard(
-                                channel = channel,
-                                now = state.currentProgramme(channel.id),
-                                next = state.nextProgramme(channel.id),
-                                onPlay = { viewModel.play(channel) },
-                                onFavorite = { viewModel.toggleFavorite(channel.id) },
-                                onFocus = { previewChannelId = channel.id },
-                                modifier = if (channel == visibleChannels[focusIndex]) {
-                                    Modifier.focusRequester(firstCardFocus)
-                                        .focusProperties { up = selectedGroupFocus }
-                                        .testTag("home-current-channel")
-                                } else {
-                                    Modifier
-                                },
-                            )
-                        }
+    val preferredChannelId = state.homeFocusChannelId ?: state.lastChannelId
+    val focusIndex = visibleChannels.indexOfFirst { it.id == preferredChannelId }.takeIf { it >= 0 } ?: 0
+    Surface(
+        color = Ink,
+        modifier = Modifier.fillMaxSize()
+            .onPreviewKeyEvent { event -> handleHomeKey(event.nativeKeyEvent, viewModel) },
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().padding(start = 44.dp, end = 44.dp, top = 28.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.LiveTv, null, tint = Mint, modifier = Modifier.size(34.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(R.string.app_name), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.weight(1f))
+                    SearchField(state.searchQuery, viewModel::setSearch)
+                    Spacer(Modifier.width(12.dp))
+                    IconButton(onClick = { viewModel.sync() }, enabled = !state.isSyncing) {
+                        if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, stringResource(R.string.sync))
                     }
-                    val preview = state.channels.firstOrNull { it.id == previewChannelId } ?: visibleChannels[focusIndex]
-                    ProgrammePanel(
-                        preview,
-                        state.programmes.filter { it.channelId == preview.id && (it.stopAt == null || it.stopAt >= System.currentTimeMillis()) },
-                        Modifier.weight(0.28f),
-                    )
+                    IconButton(
+                        onClick = viewModel::openSettings,
+                        modifier = Modifier.focusRequester(settingsFocus)
+                            .focusProperties { down = selectedGroupFocus }
+                            .testTag("home-settings"),
+                    ) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
                 }
-                LaunchedEffect(state.selectedGroup, state.searchQuery, state.channels.size) {
-                    gridState.scrollToItem(focusIndex)
-                    snapshotFlow { gridState.layoutInfo.visibleItemsInfo.any { it.index == focusIndex } }
-                        .first { it }
-                    firstCardFocus.requestFocus()
+                state.message?.let { Text(it, color = TextMuted, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp)) }
+                if (state.lastEpgSyncAt == 0L || System.currentTimeMillis() - state.lastEpgSyncAt > 12 * 60 * 60_000L) {
+                    Text(stringResource(R.string.epg_stale), color = Warm, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp))
                 }
+                Text(
+                    stringResource(
+                        R.string.epg_last_sync,
+                        if (state.lastEpgSyncAt == 0L) stringResource(R.string.never_synced) else formatDateTime(state.lastEpgSyncAt),
+                    ),
+                    color = TextMuted,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Spacer(Modifier.height(20.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(state.groups) { group ->
+                        GroupButton(
+                            label = group,
+                            selected = group == state.selectedGroup,
+                            onClick = { viewModel.selectGroup(group) },
+                            modifier = if (group == state.selectedGroup) {
+                                Modifier.focusRequester(selectedGroupFocus)
+                                    .focusProperties {
+                                        up = settingsFocus
+                                        if (visibleChannels.isNotEmpty()) down = firstCardFocus
+                                    }
+                                    .testTag("home-selected-group")
+                            } else {
+                                Modifier
+                            },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                if (visibleChannels.isEmpty()) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(stringResource(if (state.searchQuery.isBlank()) R.string.group_empty else R.string.search_empty), color = TextMuted, fontSize = 20.sp)
+                    }
+                } else {
+                    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(4),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            state = gridState,
+                            modifier = Modifier.weight(0.72f).fillMaxHeight(),
+                        ) {
+                            items(visibleChannels, key = { it.id }) { channel ->
+                                ChannelCard(
+                                    channel = channel,
+                                    now = state.currentProgramme(channel.id),
+                                    next = state.nextProgramme(channel.id),
+                                    onPlay = { viewModel.play(channel) },
+                                    onFavorite = { viewModel.toggleFavorite(channel.id) },
+                                    onFocus = { previewChannelId = channel.id },
+                                    modifier = if (channel == visibleChannels[focusIndex]) {
+                                        Modifier.focusRequester(firstCardFocus)
+                                            .focusProperties { up = selectedGroupFocus }
+                                            .testTag("home-current-channel")
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                            }
+                        }
+                        val preview = state.channels.firstOrNull { it.id == previewChannelId } ?: visibleChannels[focusIndex]
+                        ProgrammePanel(
+                            preview,
+                            state.programmes.filter { it.channelId == preview.id && (it.stopAt == null || it.stopAt >= System.currentTimeMillis()) },
+                            Modifier.weight(0.28f),
+                        )
+                    }
+                    LaunchedEffect(state.selectedGroup, state.searchQuery, state.channels.size, state.homeFocusRequestVersion) {
+                        gridState.scrollToItem(focusIndex)
+                        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.any { it.index == focusIndex } }
+                            .first { it }
+                        firstCardFocus.requestFocus()
+                    }
+                }
+            }
+            if (state.numericBuffer.isNotEmpty()) {
+                ChannelNumberOverlay(
+                    state.numericBuffer,
+                    Modifier.align(Alignment.TopCenter).padding(top = 94.dp),
+                )
             }
         }
+    }
+}
+
+private fun handleHomeKey(event: KeyEvent, viewModel: MainViewModel): Boolean {
+    if (event.action != KeyEvent.ACTION_DOWN) return false
+    val digit = digitFromKeyCode(event.keyCode) ?: return false
+    viewModel.enterDigit(digit)
+    return true
+}
+
+@Composable
+private fun ChannelNumberOverlay(buffer: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier.width(160.dp)
+            .height(86.dp)
+            .background(Color(0xF2111517), RoundedCornerShape(6.dp))
+            .border(2.dp, Mint, RoundedCornerShape(6.dp))
+            .testTag("channel-number-overlay"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(buffer, fontSize = 48.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -430,7 +466,7 @@ private fun PlayerScreen(state: MainUiState, viewModel: MainViewModel) {
             PlayerOverlay(state, viewModel, channel, controlsFocus)
         }
         if (state.numericBuffer.isNotEmpty()) {
-            Text(state.numericBuffer, fontSize = 68.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).padding(48.dp))
+            ChannelNumberOverlay(state.numericBuffer, Modifier.align(Alignment.TopEnd).padding(48.dp))
         }
     }
     LaunchedEffect(state.controlsVisible) {
@@ -441,22 +477,19 @@ private fun PlayerScreen(state: MainUiState, viewModel: MainViewModel) {
 
 private fun handlePlayerKey(event: KeyEvent, controlsVisible: Boolean, viewModel: MainViewModel): Boolean {
     if (event.action != KeyEvent.ACTION_DOWN) return false
-    if (controlsVisible) {
-        return when (event.keyCode) {
-            KeyEvent.KEYCODE_CHANNEL_UP -> { viewModel.switchChannel(-1); true }
-            KeyEvent.KEYCODE_CHANNEL_DOWN -> { viewModel.switchChannel(1); true }
-            KeyEvent.KEYCODE_MENU -> { viewModel.hideControls(); true }
-            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> { viewModel.enterDigit(event.keyCode - KeyEvent.KEYCODE_0); true }
-            else -> false
-        }
+    digitFromKeyCode(event.keyCode)?.let {
+        viewModel.enterDigit(it)
+        return true
     }
-    return when (event.keyCode) {
-        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> { viewModel.switchChannel(-1); true }
-        KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> { viewModel.switchChannel(1); true }
-        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> { viewModel.showControls(); true }
-        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MENU -> { viewModel.showControls(); true }
-        in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> { viewModel.enterDigit(event.keyCode - KeyEvent.KEYCODE_0); true }
-        else -> false
+    return when (playerRemoteAction(event.keyCode, controlsVisible)) {
+        PlayerRemoteAction.PREVIOUS_CHANNEL -> { viewModel.switchChannel(-1); true }
+        PlayerRemoteAction.NEXT_CHANNEL -> { viewModel.switchChannel(1); true }
+        PlayerRemoteAction.SHOW_CONTROLS -> { viewModel.showControls(); true }
+        PlayerRemoteAction.HIDE_CONTROLS -> { viewModel.hideControls(); true }
+        PlayerRemoteAction.TOGGLE_PLAYBACK -> { viewModel.togglePlayback(); true }
+        PlayerRemoteAction.PLAY -> { viewModel.resumePlayback(); true }
+        PlayerRemoteAction.PAUSE -> { viewModel.pausePlayback(); true }
+        null -> false
     }
 }
 
@@ -494,6 +527,15 @@ private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel:
                 Spacer(Modifier.width(16.dp))
                 Text(channel.name, color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
+                IconButton(
+                    onClick = viewModel::togglePlayback,
+                    modifier = Modifier.testTag("player-play-pause"),
+                ) {
+                    Icon(
+                        if (state.isPlaybackActive) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        stringResource(if (state.isPlaybackActive) R.string.pause_live else R.string.resume_live),
+                    )
+                }
                 IconButton(onClick = { viewModel.toggleFavorite(channel.id) }) {
                     Icon(if (channel.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, stringResource(R.string.favorite), tint = if (channel.favorite) Warm else TextPrimary)
                 }

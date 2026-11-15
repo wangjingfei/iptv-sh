@@ -48,12 +48,15 @@ data class MainUiState(
     val controlsVisible: Boolean = true,
     val numericBuffer: String = "",
     val playbackState: Int = Player.STATE_IDLE,
+    val playWhenReady: Boolean = true,
     val isPlaying: Boolean = false,
     val playbackError: String? = null,
     val diagnostics: List<DiagnosticItem> = emptyList(),
     val audioLabel: String? = null,
     val subtitlesEnabled: Boolean = true,
     val lastChannelId: String? = null,
+    val homeFocusChannelId: String? = null,
+    val homeFocusRequestVersion: Long = 0L,
     val lastEpgSyncAt: Long = 0L,
     val showBuffering: Boolean = false,
     val lastPlaybackFailure: PlaybackFailure? = null,
@@ -63,6 +66,7 @@ data class MainUiState(
     val testedSource: SourceProbe? = null,
 ) {
     val shouldKeepScreenOn: Boolean get() = isPlaying
+    val isPlaybackActive: Boolean get() = playWhenReady && playbackError == null
     val shouldAutoHideControls: Boolean get() = playbackError == null
     val groups: List<String> get() = listOf("全部", "收藏", "最近") + channels.map { it.group }.distinct()
     val visibleChannels: List<Channel> get() {
@@ -245,7 +249,13 @@ class MainViewModel @Inject constructor(
         retryCount = 0
         startPlayback(channel)
         viewModelScope.launch { repository.markWatched(channel.id) }
-        _uiState.value = _uiState.value.copy(screen = AppScreen.PLAYER, selectedChannel = channel, controlsVisible = true, playbackError = null)
+        _uiState.value = _uiState.value.copy(
+            screen = AppScreen.PLAYER,
+            selectedChannel = channel,
+            homeFocusChannelId = channel.id,
+            controlsVisible = true,
+            playbackError = null,
+        )
         scheduleControlsHide()
     }
 
@@ -290,15 +300,54 @@ class MainViewModel @Inject constructor(
 
     fun enterDigit(digit: Int) {
         val next = (_uiState.value.numericBuffer + digit).takeLast(3)
-        _uiState.value = _uiState.value.copy(numericBuffer = next, controlsVisible = true)
+        _uiState.value = _uiState.value.copy(
+            numericBuffer = next,
+            controlsVisible = _uiState.value.screen == AppScreen.PLAYER || _uiState.value.controlsVisible,
+        )
         numericJob?.cancel()
         numericJob = viewModelScope.launch {
             delay(1_200)
             val number = _uiState.value.numericBuffer.toIntOrNull()
             val channel = _uiState.value.channels.firstOrNull { it.number == number }
-            _uiState.value = _uiState.value.copy(numericBuffer = "")
-            if (channel != null) play(channel) else _uiState.value = _uiState.value.copy(message = "没有 $number 号频道")
+            if (channel == null) {
+                _uiState.value = _uiState.value.copy(numericBuffer = "", message = "没有 $number 号频道")
+            } else {
+                when (_uiState.value.screen) {
+                    AppScreen.HOME -> {
+                        _uiState.value = _uiState.value.copy(
+                            numericBuffer = "",
+                            selectedGroup = "全部",
+                            searchQuery = "",
+                            homeFocusChannelId = channel.id,
+                            homeFocusRequestVersion = _uiState.value.homeFocusRequestVersion + 1,
+                            message = null,
+                        )
+                    }
+                    AppScreen.PLAYER -> {
+                        _uiState.value = _uiState.value.copy(numericBuffer = "")
+                        play(channel)
+                    }
+                    AppScreen.SETUP, AppScreen.SETTINGS -> {
+                        _uiState.value = _uiState.value.copy(numericBuffer = "")
+                    }
+                }
+            }
         }
+    }
+
+    fun togglePlayback() {
+        playerManager.togglePlayback()
+        showControls()
+    }
+
+    fun resumePlayback() {
+        playerManager.resumeAtLiveEdge()
+        showControls()
+    }
+
+    fun pausePlayback() {
+        playerManager.pause()
+        showControls()
     }
 
     fun cycleAudio() {
@@ -403,6 +452,10 @@ class MainViewModel @Inject constructor(
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         _uiState.value = _uiState.value.copy(isPlaying = isPlaying)
+    }
+
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        _uiState.value = _uiState.value.copy(playWhenReady = playWhenReady)
     }
 
     override fun onPlayerError(error: PlaybackException) {

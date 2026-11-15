@@ -56,6 +56,9 @@ class MainUiStateTest {
     fun keepsScreenOnOnlyWhilePlayerIsActuallyPlaying() {
         assertThat(MainUiState(isPlaying = true).shouldKeepScreenOn).isTrue()
         assertThat(MainUiState(playbackState = Player.STATE_READY, isPlaying = false).shouldKeepScreenOn).isFalse()
+        assertThat(MainUiState(playbackState = Player.STATE_BUFFERING, playWhenReady = true).isPlaybackActive).isTrue()
+        assertThat(MainUiState(playbackState = Player.STATE_BUFFERING, playWhenReady = false).isPlaybackActive).isFalse()
+        assertThat(MainUiState(playbackError = "播放失败", playWhenReady = true).isPlaybackActive).isFalse()
     }
 
     @Test
