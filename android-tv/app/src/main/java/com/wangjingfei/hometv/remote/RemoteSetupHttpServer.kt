@@ -58,7 +58,7 @@ internal class RemoteSetupHttpServer(
         if (!session.headers["content-type"].orEmpty().startsWith(FORM_CONTENT_TYPE)) {
             return html(Response.Status.UNSUPPORTED_MEDIA_TYPE, messagePage("提交失败", "请求格式不受支持。"))
         }
-        synchronized(this) {
+        val submission = synchronized(this) {
             if (phase == RemoteSetupPhase.TESTING || phase == RemoteSetupPhase.SUCCESS) {
                 return html(Response.Status.OK, statusPage())
             }
@@ -73,13 +73,17 @@ internal class RemoteSetupHttpServer(
             currentEpgUrl = epgUrl
             phase = RemoteSetupPhase.TESTING
             resultMessage = "电视正在测试来源"
-            val accepted = onSubmit(RemoteSourceSubmission(sessionKey, playlistUrl, epgUrl))
-            if (!accepted) {
-                phase = RemoteSetupPhase.ERROR
-                resultMessage = "电视暂时无法接收，请稍后重试"
-            }
-            return html(Response.Status.OK, statusPage())
+            RemoteSourceSubmission(sessionKey, playlistUrl, epgUrl)
         }
+        if (!onSubmit(submission)) {
+            synchronized(this) {
+                if (phase == RemoteSetupPhase.TESTING) {
+                    phase = RemoteSetupPhase.ERROR
+                    resultMessage = "电视暂时无法接收，请稍后重试"
+                }
+            }
+        }
+        return html(Response.Status.OK, statusPage())
     }
 
     private fun isAllowedClient(remoteIpAddress: String): Boolean {
