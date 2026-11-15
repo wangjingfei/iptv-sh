@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
@@ -122,6 +123,12 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
     val playlistFocus = remember { FocusRequester() }
     val epgFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    LaunchedEffect(state.sourceDraftVersion) {
+        state.sourceDraft?.let {
+            playlist = it.playlistUrl
+            epg = it.epgUrl
+        }
+    }
     Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize().padding(horizontal = 72.dp, vertical = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(0.9f)) {
@@ -187,6 +194,15 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                     Spacer(Modifier.width(10.dp))
                     Text(stringResource(if (state.isTestingSources) R.string.testing_sources else R.string.test_connection))
                 }
+                TvButton(
+                    onClick = { viewModel.startRemoteSetup(playlist, epg) },
+                    enabled = !state.isTestingSources && !state.isSyncing,
+                    modifier = Modifier.height(52.dp).testTag("setup-phone"),
+                ) {
+                    Icon(Icons.Default.QrCode2, null)
+                    Spacer(Modifier.width(10.dp))
+                    Text(stringResource(R.string.phone_setup))
+                }
                 if (state.testedSource?.matches(playlist, epg) == true) {
                     Button(onClick = viewModel::applyTestedSource, enabled = !state.isSyncing, modifier = Modifier.height(52.dp)) {
                         if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.LiveTv, null)
@@ -197,6 +213,14 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
                 if (state.channels.isNotEmpty()) Button(onClick = viewModel::openHome) { Text(stringResource(R.string.use_cache)) }
             }
         }
+    }
+    state.remoteSetup?.let { session ->
+        RemoteSetupDialog(
+            session = session,
+            canApply = state.testedSource?.matches(playlist, epg) == true,
+            onApply = viewModel::applyTestedSource,
+            onDismiss = viewModel::stopRemoteSetup,
+        )
     }
     LaunchedEffect(Unit) { playlistFocus.requestFocus() }
 }
@@ -586,6 +610,12 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
     val backFocus = remember { FocusRequester() }
     val playlistFocus = remember { FocusRequester() }
     val epgFocus = remember { FocusRequester() }
+    LaunchedEffect(state.sourceDraftVersion) {
+        state.sourceDraft?.let {
+            playlist = it.playlistUrl
+            epg = it.epgUrl
+        }
+    }
     Surface(color = Ink, modifier = Modifier.fillMaxSize().testTag("settings-root")) {
         Row(Modifier.fillMaxSize().padding(44.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
             Column(Modifier.weight(1.15f)) {
@@ -647,6 +677,14 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     }
                     Button(onClick = { viewModel.runDiagnostics(playlist, epg) }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
                         Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.run_diagnostics))
+                    }
+                    Button(
+                        onClick = { viewModel.startRemoteSetup(playlist, epg) },
+                        enabled = !state.isTestingSources && !state.isSyncing,
+                        colors = ButtonDefaults.buttonColors(containerColor = PanelRaised),
+                        modifier = Modifier.testTag("settings-phone"),
+                    ) {
+                        Icon(Icons.Default.QrCode2, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.phone_setup))
                     }
                 }
                 if (state.testedSource?.matches(playlist, epg) == true) {
@@ -722,6 +760,14 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                 Text(stringResource(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), color = TextMuted, fontSize = 16.sp)
             }
         }
+    }
+    state.remoteSetup?.let { session ->
+        RemoteSetupDialog(
+            session = session,
+            canApply = state.testedSource?.matches(playlist, epg) == true,
+            onApply = viewModel::applyTestedSource,
+            onDismiss = viewModel::stopRemoteSetup,
+        )
     }
     when (confirmAction) {
         "epg" -> ConfirmDialog(stringResource(R.string.confirm_clear_epg_title), stringResource(R.string.confirm_clear_epg_detail), {

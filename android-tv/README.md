@@ -1,11 +1,12 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.3.0` 开发版，已经能够生成带调试签名、可侧载的 APK；GitHub Actions 使用 API 34 Android TV 镜像执行设备测试，本机 API 36 Android TV 模拟器已通过安装、启动冒烟检查和 7 项设备测试。物理电视的完整遥控器路径、4K 解码、长时间播放和正式签名升级仍待实机验收。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.4.0` 开发版，已经能够生成带调试签名、可侧载的 APK；GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。物理电视的完整遥控器路径、4K 解码、长时间播放、手机扫码配置和正式签名升级仍待实机验收。
 
 ## 已实现
 
 - 从可修改的 M3U 和 XMLTV 地址同步频道与节目单。
 - 首次安装先单独测试播放列表、XMLTV 与样例 HLS；确认后才保存来源并导入，测试失败不会覆盖已有设置。
+- 首次设置页和设置页可临时显示二维码，在同一局域网的手机网页中填写来源；手机提交后仍由电视测试，并需在电视端确认应用。
 - 使用 ETag/Last-Modified 条件请求，未变化的数据不会重复解析和写库。
 - Room 缓存频道/节目，DataStore 保存来源配置和上次频道。
 - 数据库显式迁移到 v3；节目缺少结束时间时仍可保存，消失频道的收藏保留 30 天。
@@ -54,7 +55,7 @@ adb shell am start -n com.wangjingfei.hometv.debug/com.wangjingfei.hometv.MainAc
 make android-device-check
 ```
 
-存在多个 ADB 设备时用 `ANDROID_TV_SERIAL=<序列号>` 指定目标。需要同时执行 7 项设备测试时运行：
+存在多个 ADB 设备时用 `ANDROID_TV_SERIAL=<序列号>` 指定目标。需要同时执行 8 项设备测试时运行：
 
 ```sh
 ./scripts/verify-android-device.sh --with-tests
@@ -74,6 +75,18 @@ adb uninstall com.wangjingfei.hometv.debug
 - XMLTV：`http://192.168.31.200:8091/epg.xml`
 
 地址只是开发版预填值，可在首次连接页或设置页修改。明文 HTTP 只接受 RFC 1918、`.home.arpa`、`.local` 和 localhost；公网来源必须使用 HTTPS。
+
+## 手机扫码设置
+
+在首次设置页或“来源与同步”中选择“手机设置”。电视会启动一个临时局域网页并显示二维码：
+
+- 手机必须与电视处于同一 IPv4 子网；访客 Wi-Fi、AP 隔离或跨 VLAN 防火墙可能阻止访问。
+- 会话使用 128 位随机令牌，十分钟后过期；关闭弹窗、切换到后台或应用来源时立即停止服务。
+- 服务只接受固定表单路由，请求体上限为 8 KiB，单个 URL 上限为 2048 个字符。
+- 手机提交不会直接覆盖设置。电视会复用来源测试，测试通过后仍需在电视上确认“应用已测试来源”。
+- 页面和二维码都在电视本地生成，不依赖公网二维码或配置服务。
+
+当前应用以 SDK 36 为目标，已有 `INTERNET` 权限可访问局域网。将来升级到 target SDK 37 或更高时，必须按 Android 17 规则声明并运行时申请 `ACCESS_LOCAL_NETWORK`，否则播放与扫码服务都会被系统阻止。
 
 ## 正式发布
 
