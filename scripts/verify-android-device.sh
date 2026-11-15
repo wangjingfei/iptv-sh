@@ -63,7 +63,7 @@ fi
 model=$($adb_bin -s "$serial" shell getprop ro.product.model | tr -d '\r')
 android_version=$($adb_bin -s "$serial" shell getprop ro.build.version.release | tr -d '\r')
 sdk_version=$($adb_bin -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
-echo "目标设备：$serial（${model:-未知型号}，Android ${android_version:-未知} / API ${sdk_version:-未知}）"
+echo "目标设备：${serial}（${model:-未知型号}，Android ${android_version:-未知} / API ${sdk_version:-未知}）"
 
 if [ "$run_tests" -eq 1 ]; then
     echo "运行设备测试……"
@@ -76,7 +76,7 @@ $adb_bin -s "$serial" shell am force-stop "$package_name"
 $adb_bin -s "$serial" shell monkey -p "$package_name" -c android.intent.category.LEANBACK_LAUNCHER 1 >/dev/null
 sleep 2
 
-foreground=$($adb_bin -s "$serial" shell dumpsys activity activities | tr -d '\r' | awk '/mResumedActivity/ { print; exit }')
+foreground=$($adb_bin -s "$serial" shell dumpsys activity activities | tr -d '\r' | awk '/(topResumedActivity|mResumedActivity|ResumedActivity)/ { print; exit }')
 case "$foreground" in
     *"$package_name/$activity_name"*) ;;
     *)
