@@ -16,7 +16,7 @@
 | Release 构建、R8 与签名链路 | 通过 | 已生成未签名 release APK；一次性 JKS 的 v1/v2 签名和证书读取通过，真实 release keystore 升级仍待验证 |
 | 仓库静态检查 | 通过 | Python、Compose、秘密特征和 Android TV 工程结构 |
 | 当前后端快速在线检查 | 通过 | 112 个频道，抽测组播/HLS 实际播放，EPG 匹配 100/112 |
-| 本机 Android TV 模拟器 | 通过 | Android TV API 36 / Android 16 ARM64 镜像；Debug APK 安装及 TV 启动器启动通过，6 项 `connectedDebugAndroidTest` 全部通过 |
+| 本机 Android TV 模拟器 | 通过 | Android TV API 36 / Android 16 ARM64 镜像；Debug APK 安装及 TV 启动器启动通过，6 项 `connectedDebugAndroidTest` 全部通过；连接 NAS 实际导入 112 个频道和 11,304 条节目，并从上海新闻综合 HLS 解码出视频画面 |
 | 物理电视安装/启动器展示 | 未验证 | 当前 ADB 没有连接设备 |
 | 遥控器全路径 | 部分通过 | 首次设置三步 DPAD 路径已在 API 35 模拟器通过；首页、播放浮层和设置页全路径仍需物理遥控器验证 |
 | 普通频道与 4K 解码 | 未验证 | 依赖目标电视硬件 |
