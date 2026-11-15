@@ -90,3 +90,5 @@ export HOME_TV_KEY_PASSWORD='...'
 ```sh
 make android-signing-check
 ```
+
+若 Release 输出目录已存在同名签名 APK，检查脚本会在运行期间暂存它，并在退出时恢复原文件。
