@@ -41,7 +41,9 @@ jobs:
 
       - name: Test and build Android TV
         working-directory: android-tv
-        run: ./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
+        run: |
+          ./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin assembleDebug assembleRelease
+          ./gradlew --no-parallel lintDebug
 
       - name: Verify release signing path
         run: ./scripts/verify-android-signing.sh

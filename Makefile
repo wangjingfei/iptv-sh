@@ -15,10 +15,12 @@ android-test:
 	cd android-tv && ./gradlew testDebugUnitTest
 
 android-check:
-	cd android-tv && ./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
+	cd android-tv && ./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin assembleDebug assembleRelease
+	cd android-tv && ./gradlew --no-parallel lintDebug
 
 android-apk:
-	cd android-tv && ./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
+	cd android-tv && ./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin assembleDebug assembleRelease
+	cd android-tv && ./gradlew --no-parallel lintDebug
 
 android-signing-check:
 	./scripts/verify-android-signing.sh
