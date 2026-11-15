@@ -1,5 +1,6 @@
 package com.wangjingfei.hometv.ui
 
+import androidx.media3.common.Player
 import com.google.common.truth.Truth.assertThat
 import com.wangjingfei.hometv.data.Channel
 import com.wangjingfei.hometv.data.Programme
@@ -49,5 +50,11 @@ class MainUiStateTest {
     fun keepsPlaybackFailureControlsVisible() {
         assertThat(MainUiState(playbackError = null).shouldAutoHideControls).isTrue()
         assertThat(MainUiState(playbackError = "解码失败").shouldAutoHideControls).isFalse()
+    }
+
+    @Test
+    fun keepsScreenOnOnlyWhilePlayerIsActuallyPlaying() {
+        assertThat(MainUiState(isPlaying = true).shouldKeepScreenOn).isTrue()
+        assertThat(MainUiState(playbackState = Player.STATE_READY, isPlaying = false).shouldKeepScreenOn).isFalse()
     }
 }

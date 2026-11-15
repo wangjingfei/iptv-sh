@@ -87,7 +87,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.Button as TvButton
@@ -380,7 +379,7 @@ private fun PlayerScreen(state: MainUiState, viewModel: MainViewModel) {
             },
             update = {
                 it.player = viewModel.playerManager.player
-                it.keepScreenOn = state.playbackState == Player.STATE_READY && viewModel.playerManager.player.playWhenReady
+                it.keepScreenOn = state.shouldKeepScreenOn
             },
             modifier = Modifier.fillMaxSize(),
         )

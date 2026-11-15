@@ -48,6 +48,7 @@ data class MainUiState(
     val controlsVisible: Boolean = true,
     val numericBuffer: String = "",
     val playbackState: Int = Player.STATE_IDLE,
+    val isPlaying: Boolean = false,
     val playbackError: String? = null,
     val diagnostics: List<DiagnosticItem> = emptyList(),
     val audioLabel: String? = null,
@@ -61,6 +62,7 @@ data class MainUiState(
     val isTestingSources: Boolean = false,
     val testedSource: SourceProbe? = null,
 ) {
+    val shouldKeepScreenOn: Boolean get() = isPlaying
     val shouldAutoHideControls: Boolean get() = playbackError == null
     val groups: List<String> get() = listOf("全部", "收藏", "最近") + channels.map { it.group }.distinct()
     val visibleChannels: List<Channel> get() {
@@ -389,6 +391,10 @@ class MainViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        _uiState.value = _uiState.value.copy(isPlaying = isPlaying)
     }
 
     override fun onPlayerError(error: PlaybackException) {

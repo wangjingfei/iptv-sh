@@ -33,7 +33,8 @@ sdk.dir=/你的/Android/Sdk
 执行：
 
 ```sh
-./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug
+./gradlew --no-parallel testDebugUnitTest compileDebugAndroidTestKotlin assembleDebug
+./gradlew --no-parallel lintDebug
 ```
 
 APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。安装到已开启 ADB 的电视或盒子：

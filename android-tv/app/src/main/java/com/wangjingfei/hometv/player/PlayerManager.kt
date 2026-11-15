@@ -3,9 +3,10 @@
 package com.wangjingfei.hometv.player
 
 import android.content.Context
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -29,9 +30,16 @@ class PlayerManager @Inject constructor(@ApplicationContext context: Context) {
         .setMediaSourceFactory(DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactory))
         .build()
         .apply {
-        repeatMode = Player.REPEAT_MODE_ONE
-        playWhenReady = true
-    }
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                true,
+            )
+            repeatMode = Player.REPEAT_MODE_ONE
+            playWhenReady = true
+        }
     private val mediaSession = MediaSession.Builder(context, player).build()
     private val _currentChannel = MutableStateFlow<Channel?>(null)
     val currentChannel: StateFlow<Channel?> = _currentChannel
