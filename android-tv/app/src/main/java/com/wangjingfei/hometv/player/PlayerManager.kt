@@ -44,6 +44,22 @@ class PlayerManager @Inject constructor(@ApplicationContext context: Context) {
     private val _currentChannel = MutableStateFlow<Channel?>(null)
     val currentChannel: StateFlow<Channel?> = _currentChannel
 
+    init {
+        player.addListener(
+            object : Player.Listener {
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    if (
+                        playWhenReady &&
+                        reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST &&
+                        player.isCurrentMediaItemLive
+                    ) {
+                        player.seekToDefaultPosition()
+                    }
+                }
+            },
+        )
+    }
+
     fun play(channel: Channel) {
         if (_currentChannel.value?.id == channel.id && player.mediaItemCount > 0) {
             if (player.playbackState == Player.STATE_IDLE) player.prepare()
@@ -65,6 +81,17 @@ class PlayerManager @Inject constructor(@ApplicationContext context: Context) {
     fun retry() {
         player.prepare()
         player.play()
+    }
+
+    fun pause() = player.pause()
+
+    fun resumeAtLiveEdge() {
+        if (player.playbackState == Player.STATE_IDLE) player.prepare()
+        player.play()
+    }
+
+    fun togglePlayback() {
+        if (player.playWhenReady) pause() else resumeAtLiveEdge()
     }
 
     fun cycleAudioLanguage(): String? {

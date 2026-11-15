@@ -28,6 +28,8 @@
     <string name="subtitles_on">字幕开</string>
     <string name="subtitles_off">字幕关</string>
     <string name="live_now">正在直播</string>
+    <string name="pause_live">暂停直播</string>
+    <string name="resume_live">回到直播</string>
     <string name="next_program_with_time">接下来 %1$s  %2$s</string>
     <string name="retry">重试</string>
     <string name="opening_channel">正在打开频道</string>

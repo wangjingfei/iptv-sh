@@ -3,6 +3,7 @@
 package com.wangjingfei.hometv.ui
 
 import android.content.Context
+import android.view.KeyEvent
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
@@ -12,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import com.wangjingfei.hometv.MainActivity
 import com.wangjingfei.hometv.data.AppDatabase
 import com.wangjingfei.hometv.data.ChannelEntity
@@ -27,6 +29,7 @@ import org.junit.rules.TestRule
 
 class RemoteNavigationTest {
     private val composeRule = createAndroidComposeRule<MainActivity>()
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @get:Rule
     val rules: TestRule = RuleChain
@@ -36,6 +39,11 @@ class RemoteNavigationTest {
     @Test
     fun configuredHomeSupportsPlayerAndSettingsRemotePaths() {
         composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), 5_000)
+        waitUntilFocused("home-current-channel")
+
+        pressNative(KeyEvent.KEYCODE_9, KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_1)
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("channel-number-overlay"), 1_000)
+        composeRule.waitUntilDoesNotExist(hasTestTag("channel-number-overlay"), 3_000)
         waitUntilFocused("home-current-channel")
 
         press("home-current-channel", Key.Enter)
@@ -87,6 +95,11 @@ class RemoteNavigationTest {
         composeRule.waitForIdle()
     }
 
+    private fun pressNative(vararg keyCodes: Int) {
+        keyCodes.forEach(instrumentation::sendKeyDownUpSync)
+        composeRule.waitForIdle()
+    }
+
     private fun waitUntilFocused(tag: String) {
         composeRule.waitUntil(5_000) {
             runCatching { composeRule.onNodeWithTag(tag).assertIsFocused() }.isSuccess
@@ -99,42 +112,45 @@ class RemoteNavigationTest {
         private lateinit var originalConfig: SourceConfig
         private var originalLastChannelId: String? = null
         private var originalLastSyncAt: Long = 0L
-        private var originalTestChannel: ChannelEntity? = null
+        private var originalTestChannels: List<ChannelEntity> = emptyList()
 
         override fun before() = runBlocking {
             originalConfig = settings.config.first()
             originalLastChannelId = settings.lastChannelId.first()
             originalLastSyncAt = settings.lastSyncAt.first()
             withDatabase { database ->
-                originalTestChannel = database.iptvDao().getChannels().firstOrNull { it.id == TEST_CHANNEL_ID }
+                originalTestChannels = database.iptvDao().getChannels().filter { it.id in TEST_CHANNEL_IDS }
                 database.iptvDao().upsertChannels(
                     listOf(
                         ChannelEntity(
-                            id = TEST_CHANNEL_ID,
-                            name = "遥控器测试频道",
+                            id = TEST_CHANNEL_900_ID,
+                            name = "遥控器测试频道 900",
                             streamUrl = "http://127.0.0.1:65534/unavailable/index.m3u8",
                             groupName = "测试",
                             channelNumber = 900,
+                        ),
+                        ChannelEntity(
+                            id = TEST_CHANNEL_901_ID,
+                            name = "遥控器测试频道 901",
+                            streamUrl = "http://127.0.0.1:65534/unavailable-901/index.m3u8",
+                            groupName = "测试",
+                            channelNumber = 901,
                         ),
                     ),
                 )
             }
             settings.saveConfig(originalConfig.playlistUrl, originalConfig.epgUrl, complete = true)
-            settings.setLastChannel(TEST_CHANNEL_ID)
+            settings.setLastChannel(TEST_CHANNEL_900_ID)
             settings.setLastSyncAt(System.currentTimeMillis())
         }
 
         override fun after() = runBlocking {
             withDatabase { database ->
-                val original = originalTestChannel
-                if (original == null) {
-                    database.openHelper.writableDatabase.execSQL(
-                        "DELETE FROM channels WHERE id = ?",
-                        arrayOf(TEST_CHANNEL_ID),
-                    )
-                } else {
-                    database.iptvDao().upsertChannels(listOf(original))
-                }
+                database.openHelper.writableDatabase.execSQL(
+                    "DELETE FROM channels WHERE id IN (?, ?)",
+                    arrayOf(TEST_CHANNEL_900_ID, TEST_CHANNEL_901_ID),
+                )
+                if (originalTestChannels.isNotEmpty()) database.iptvDao().upsertChannels(originalTestChannels)
             }
             settings.saveConfig(originalConfig.playlistUrl, originalConfig.epgUrl, originalConfig.setupComplete)
             originalLastChannelId?.let { settings.setLastChannel(it) } ?: settings.clearLastChannel()
@@ -154,6 +170,8 @@ class RemoteNavigationTest {
     }
 
     private companion object {
-        const val TEST_CHANNEL_ID = "codex-remote-navigation-test"
+        const val TEST_CHANNEL_900_ID = "codex-remote-navigation-test-900"
+        const val TEST_CHANNEL_901_ID = "codex-remote-navigation-test-901"
+        val TEST_CHANNEL_IDS = setOf(TEST_CHANNEL_900_ID, TEST_CHANNEL_901_ID)
     }
 }
