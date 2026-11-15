@@ -22,11 +22,34 @@ fi
 
 signing_tmp=$(mktemp -d "${TMPDIR:-/tmp}/home-tv-signing.XXXXXX")
 signed_apk="$android_root/app/build/outputs/apk/release/app-release.apk"
+previous_signed_apk="$signing_tmp/app-release.previous.apk"
+had_previous_signed_apk=0
+may_remove_signed_apk=0
 cleanup() {
-    rm -f "$signed_apk"
-    rm -rf "$signing_tmp"
+    cleanup_status=0
+    if [ "$may_remove_signed_apk" -eq 1 ]; then
+        rm -f "$signed_apk" || cleanup_status=$?
+    fi
+    if [ "$had_previous_signed_apk" -eq 1 ]; then
+        if mv "$previous_signed_apk" "$signed_apk"; then
+            had_previous_signed_apk=0
+        else
+            echo "错误：无法恢复原有 Release APK；备份保留在 $previous_signed_apk" >&2
+            cleanup_status=1
+        fi
+    fi
+    if [ "$had_previous_signed_apk" -eq 0 ]; then
+        rm -rf "$signing_tmp" || cleanup_status=$?
+    fi
+    return "$cleanup_status"
 }
 trap cleanup EXIT HUP INT TERM
+
+if [ -e "$signed_apk" ]; then
+    mv "$signed_apk" "$previous_signed_apk"
+    had_previous_signed_apk=1
+fi
+may_remove_signed_apk=1
 
 store_password=$(openssl rand -hex 16)
 key_password=$(openssl rand -hex 16)
