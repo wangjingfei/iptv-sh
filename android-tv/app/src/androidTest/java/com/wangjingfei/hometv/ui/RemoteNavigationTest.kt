@@ -39,40 +39,40 @@ class RemoteNavigationTest {
     @Test
     fun configuredHomeSupportsPlayerAndSettingsRemotePaths() {
         composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), 5_000)
-        composeRule.onNodeWithTag("home-current-channel").assertIsFocused()
+        waitUntilFocused("home-current-channel")
 
         press("home-current-channel", Key.Enter)
         composeRule.waitUntilAtLeastOneExists(hasTestTag("player-overlay"), 5_000)
-        composeRule.onNodeWithTag("player-current-channel").assertIsFocused()
+        waitUntilFocused("player-current-channel")
 
         pressBack()
         composeRule.waitUntilDoesNotExist(hasTestTag("player-overlay"), 5_000)
-        composeRule.onNodeWithTag("player-root").assertIsFocused()
+        waitUntilFocused("player-root")
 
         pressBack()
         composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), 5_000)
-        composeRule.onNodeWithTag("home-current-channel").assertIsFocused()
+        waitUntilFocused("home-current-channel")
 
         press("home-current-channel", Key.DirectionUp)
-        composeRule.onNodeWithTag("home-selected-group").assertIsFocused()
+        waitUntilFocused("home-selected-group")
         press("home-selected-group", Key.DirectionUp)
-        composeRule.onNodeWithTag("home-settings").assertIsFocused()
+        waitUntilFocused("home-settings")
         press("home-settings", Key.Enter)
 
         composeRule.onNodeWithTag("settings-root").assertIsDisplayed()
-        composeRule.onNodeWithTag("settings-back").assertIsFocused()
+        waitUntilFocused("settings-back")
         press("settings-back", Key.DirectionDown)
-        composeRule.onNodeWithTag("settings-playlist").assertIsFocused()
+        waitUntilFocused("settings-playlist")
         press("settings-playlist", Key.DirectionDown)
-        composeRule.onNodeWithTag("settings-epg").assertIsFocused()
+        waitUntilFocused("settings-epg")
         press("settings-epg", Key.DirectionUp)
-        composeRule.onNodeWithTag("settings-playlist").assertIsFocused()
+        waitUntilFocused("settings-playlist")
         press("settings-playlist", Key.DirectionUp)
-        composeRule.onNodeWithTag("settings-back").assertIsFocused()
+        waitUntilFocused("settings-back")
         press("settings-back", Key.Enter)
 
         composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), 5_000)
-        composeRule.onNodeWithTag("home-current-channel").assertIsFocused()
+        waitUntilFocused("home-current-channel")
     }
 
     private fun press(tag: String, key: Key) {
@@ -86,6 +86,12 @@ class RemoteNavigationTest {
     private fun pressBack() {
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.waitForIdle()
+    }
+
+    private fun waitUntilFocused(tag: String) {
+        composeRule.waitUntil(5_000) {
+            runCatching { composeRule.onNodeWithTag(tag).assertIsFocused() }.isSuccess
+        }
     }
 
     private class SeedConfiguredHomeRule : ExternalResource() {
