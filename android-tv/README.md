@@ -1,6 +1,6 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.3.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并通过 API 35 模拟器的首次设置 DPAD 焦点和数据层设备测试；物理电视的完整遥控器路径、4K 解码、长时间播放和正式签名升级仍待实机验收。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.3.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并通过 API 35 模拟器的首次设置 DPAD 焦点和数据层设备测试，以及 Android TV API 36 模拟器上的安装、启动冒烟检查和 6 项设备测试；物理电视的完整遥控器路径、4K 解码、长时间播放和正式签名升级仍待实机验收。
 
 ## 已实现
 
@@ -44,7 +44,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.wangjingfei.hometv.debug/com.wangjingfei.hometv.MainActivity
 ```
 
-也可以在仓库根目录运行可重复的设备冒烟检查。脚本会自动选择唯一已授权设备、安装 APK、从 TV 启动器启动并确认应用进入前台：
+也可以在仓库根目录运行可重复的设备冒烟检查。脚本会自动选择唯一已授权设备、安装 APK、从 TV 启动器启动并确认应用进入前台；前台 Activity 检测兼容新版 Android 输出的 `topResumedActivity`，也兼容旧版字段：
 
 ```sh
 make android-device-check
