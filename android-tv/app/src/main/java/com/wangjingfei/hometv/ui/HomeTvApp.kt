@@ -200,6 +200,8 @@ private fun SetupScreen(state: MainUiState, viewModel: MainViewModel) {
 @Composable
 private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
     val firstCardFocus = remember { FocusRequester() }
+    val selectedGroupFocus = remember { FocusRequester() }
+    val settingsFocus = remember { FocusRequester() }
     var previewChannelId by remember { mutableStateOf<String?>(null) }
     val gridState = rememberLazyGridState()
     val visibleChannels = state.visibleChannels
@@ -216,7 +218,12 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
                 IconButton(onClick = { viewModel.sync() }, enabled = !state.isSyncing) {
                     if (state.isSyncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Default.Refresh, stringResource(R.string.sync))
                 }
-                IconButton(onClick = viewModel::openSettings) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
+                IconButton(
+                    onClick = viewModel::openSettings,
+                    modifier = Modifier.focusRequester(settingsFocus)
+                        .focusProperties { down = selectedGroupFocus }
+                        .testTag("home-settings"),
+                ) { Icon(Icons.Default.Settings, stringResource(R.string.settings)) }
             }
             state.message?.let { Text(it, color = TextMuted, fontSize = 16.sp, modifier = Modifier.padding(top = 4.dp)) }
             if (state.lastEpgSyncAt == 0L || System.currentTimeMillis() - state.lastEpgSyncAt > 12 * 60 * 60_000L) {
@@ -234,7 +241,21 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
             Spacer(Modifier.height(20.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(state.groups) { group ->
-                    GroupButton(group, selected = group == state.selectedGroup) { viewModel.selectGroup(group) }
+                    GroupButton(
+                        label = group,
+                        selected = group == state.selectedGroup,
+                        onClick = { viewModel.selectGroup(group) },
+                        modifier = if (group == state.selectedGroup) {
+                            Modifier.focusRequester(selectedGroupFocus)
+                                .focusProperties {
+                                    up = settingsFocus
+                                    if (visibleChannels.isNotEmpty()) down = firstCardFocus
+                                }
+                                .testTag("home-selected-group")
+                        } else {
+                            Modifier
+                        },
+                    )
                 }
             }
             Spacer(Modifier.height(18.dp))
@@ -259,7 +280,13 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
                                 onPlay = { viewModel.play(channel) },
                                 onFavorite = { viewModel.toggleFavorite(channel.id) },
                                 onFocus = { previewChannelId = channel.id },
-                                modifier = if (channel == visibleChannels[focusIndex]) Modifier.focusRequester(firstCardFocus) else Modifier,
+                                modifier = if (channel == visibleChannels[focusIndex]) {
+                                    Modifier.focusRequester(firstCardFocus)
+                                        .focusProperties { up = selectedGroupFocus }
+                                        .testTag("home-current-channel")
+                                } else {
+                                    Modifier
+                                },
                             )
                         }
                     }
@@ -293,9 +320,10 @@ private fun SearchField(query: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-private fun GroupButton(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun GroupButton(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Button(
         onClick = onClick,
+        modifier = modifier,
         colors = ButtonDefaults.buttonColors(
             containerColor = if (selected) Mint else PanelRaised,
             contentColor = if (selected) Ink else TextPrimary,
@@ -365,6 +393,7 @@ private fun PlayerScreen(state: MainUiState, viewModel: MainViewModel) {
             .background(Color.Black)
             .focusRequester(rootFocus)
             .focusable()
+            .testTag("player-root")
             .onPreviewKeyEvent { event -> handlePlayerKey(event.nativeKeyEvent, state.controlsVisible, viewModel) },
     ) {
         AndroidView(
@@ -429,7 +458,7 @@ private fun handlePlayerKey(event: KeyEvent, controlsVisible: Boolean, viewModel
 
 @Composable
 private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel: Channel, focusRequester: FocusRequester) {
-    Box(Modifier.fillMaxSize().background(Color(0x55000000))) {
+    Box(Modifier.fillMaxSize().background(Color(0x55000000)).testTag("player-overlay")) {
         Column(
             Modifier.align(Alignment.BottomStart)
                 .fillMaxWidth()
@@ -437,13 +466,16 @@ private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel:
                 .onFocusChanged { if (it.hasFocus) viewModel.holdControls() else viewModel.resumeControlsTimeout() }
                 .padding(horizontal = 44.dp, vertical = 24.dp),
         ) {
-            val currentIndex = state.channels.indexOfFirst { it.id == channel.id }.coerceAtLeast(0)
-            val quickChannels = (-2..2).map { state.channels[(currentIndex + it + state.channels.size) % state.channels.size] }
+            val quickChannels = state.quickChannels(channel.id)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(quickChannels, key = { it.id }) { quickChannel ->
                     Button(
                         onClick = { viewModel.play(quickChannel) },
-                        modifier = if (quickChannel.id == channel.id) Modifier.focusRequester(focusRequester) else Modifier,
+                        modifier = if (quickChannel.id == channel.id) {
+                            Modifier.focusRequester(focusRequester).testTag("player-current-channel")
+                        } else {
+                            Modifier
+                        },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (quickChannel.id == channel.id) Mint else PanelRaised,
                             contentColor = if (quickChannel.id == channel.id) Ink else TextPrimary,
@@ -505,17 +537,62 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
     var playlist by remember(state.config.playlistUrl) { mutableStateOf(state.config.playlistUrl) }
     var epg by remember(state.config.epgUrl) { mutableStateOf(state.config.epgUrl) }
     var confirmAction by remember { mutableStateOf<String?>(null) }
-    Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
+    val backFocus = remember { FocusRequester() }
+    val playlistFocus = remember { FocusRequester() }
+    val epgFocus = remember { FocusRequester() }
+    Surface(color = Ink, modifier = Modifier.fillMaxSize().testTag("settings-root")) {
         Row(Modifier.fillMaxSize().padding(44.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
             Column(Modifier.weight(1.15f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = viewModel::openHome) { Icon(Icons.Default.Home, stringResource(R.string.back_home)) }
+                    IconButton(
+                        onClick = viewModel::openHome,
+                        modifier = Modifier.focusRequester(backFocus)
+                            .focusProperties { down = playlistFocus }
+                            .testTag("settings-back"),
+                    ) { Icon(Icons.Default.Home, stringResource(R.string.back_home)) }
                     Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.sources_and_sync), fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(24.dp))
-                OutlinedTextField(playlist, { playlist = it; viewModel.invalidateSourceTest() }, label = { Text(stringResource(R.string.playlist_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    playlist,
+                    { playlist = it; viewModel.invalidateSourceTest() },
+                    label = { Text(stringResource(R.string.playlist_url)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                        .onPreviewKeyEvent { event ->
+                            if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                            when (event.nativeKeyEvent.keyCode) {
+                                KeyEvent.KEYCODE_DPAD_UP -> { backFocus.requestFocus(); true }
+                                KeyEvent.KEYCODE_DPAD_DOWN -> { epgFocus.requestFocus(); true }
+                                else -> false
+                            }
+                        }
+                        .focusRequester(playlistFocus)
+                        .focusProperties {
+                            up = backFocus
+                            down = epgFocus
+                        }
+                        .testTag("settings-playlist"),
+                )
                 Spacer(Modifier.height(14.dp))
-                OutlinedTextField(epg, { epg = it; viewModel.invalidateSourceTest() }, label = { Text(stringResource(R.string.xmltv_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    epg,
+                    { epg = it; viewModel.invalidateSourceTest() },
+                    label = { Text(stringResource(R.string.xmltv_url)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                        .onPreviewKeyEvent { event ->
+                            if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN && event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                                playlistFocus.requestFocus()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        .focusRequester(epgFocus)
+                        .focusProperties { up = playlistFocus }
+                        .testTag("settings-epg"),
+                )
                 Spacer(Modifier.height(18.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { viewModel.testSources(playlist, epg) }, enabled = !state.isTestingSources && !state.isSyncing) {
@@ -614,6 +691,7 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
             viewModel.clearFavorites()
         }) { confirmAction = null }
     }
+    LaunchedEffect(Unit) { backFocus.requestFocus() }
 }
 
 @Composable

@@ -57,4 +57,15 @@ class MainUiStateTest {
         assertThat(MainUiState(isPlaying = true).shouldKeepScreenOn).isTrue()
         assertThat(MainUiState(playbackState = Player.STATE_READY, isPlaying = false).shouldKeepScreenOn).isFalse()
     }
+
+    @Test
+    fun quickChannelsStayUniqueForSmallChannelLists() {
+        val channels = (1..3).map { Channel("id-$it", "频道 $it", "http://192.168.1.2/$it.m3u8", "测试", it) }
+
+        assertThat(MainUiState(channels = channels).quickChannels("id-2").map { it.id })
+            .containsExactly("id-3", "id-1", "id-2")
+            .inOrder()
+        assertThat(MainUiState(channels = channels.take(1)).quickChannels("id-1")).containsExactly(channels.first())
+        assertThat(MainUiState().quickChannels("missing")).isEmpty()
+    }
 }

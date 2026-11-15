@@ -1,6 +1,6 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.3.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并通过 API 35 模拟器的首次设置 DPAD 焦点和数据层设备测试，以及 Android TV API 36 模拟器上的安装、启动冒烟检查和 6 项设备测试；物理电视的完整遥控器路径、4K 解码、长时间播放和正式签名升级仍待实机验收。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.3.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并通过 API 35 模拟器的首次设置 DPAD 焦点和数据层设备测试，以及 Android TV API 36 模拟器上的安装、启动冒烟检查和 7 项设备测试；物理电视的完整遥控器路径、4K 解码、长时间播放和正式签名升级仍待实机验收。
 
 ## 已实现
 
@@ -12,6 +12,8 @@
 - 全部、收藏、最近和确定性频道分组，支持名称或频道号搜索。
 - 首页显示当前、下一及后续节目；EPG 不可用时仍保留频道缓存。
 - Media3 HLS 全屏播放、上下换台、350 ms 换台防抖、数字键选台。
+- 首页当前频道、分组、设置入口、播放器浮层和设置来源输入框具有确定性的五向键焦点路径。
+- 快捷频道栏兼容不足 5 个频道的列表，不会因循环展示产生重复 key。
 - 返回首页或进入后台时停止播放器，仍处于播放页时回到前台自动恢复当前频道。
 - 音轨切换、字幕开关、播放错误码、1/2/4 秒自动重试和手动重试。
 - M3U、XMLTV、EPG 健康、HLS 健康和样例频道 HLS 的诊断。
@@ -51,7 +53,7 @@ adb shell am start -n com.wangjingfei.hometv.debug/com.wangjingfei.hometv.MainAc
 make android-device-check
 ```
 
-存在多个 ADB 设备时用 `ANDROID_TV_SERIAL=<序列号>` 指定目标。需要同时执行 6 项设备测试时运行：
+存在多个 ADB 设备时用 `ANDROID_TV_SERIAL=<序列号>` 指定目标。需要同时执行 7 项设备测试时运行：
 
 ```sh
 ./scripts/verify-android-device.sh --with-tests
