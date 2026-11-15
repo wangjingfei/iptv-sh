@@ -27,7 +27,7 @@
 | 连续播放 1 小时/连续换台 | 未验证 | 需要目标电视与 NAS 联合观察 |
 | Home/返回后的 HLS 释放与恢复 | 模拟器通过，实体电视未验证 | API 36 TV 模拟器按 Home 后播放器变为 `NONE`，音频焦点和有效亮屏占用均已释放；回到仍打开的播放页恢复当前频道的实体电视行为仍待验证 |
 | 初次来源测试流程 | 自动化部分通过，未实机验证 | M3U、XMLTV 和真实 HLS 样例探测通过后才允许应用来源；修改输入会使旧测试失效；三步焦点路径已自动化 |
-| GitHub Actions 自动构建 | 通过 | 运行 `43698814265` 的 build 与 instrumentation 作业均通过；仓库检查、Android 构建、Release 签名路径和 API 35 通用镜像设备测试通过。当前分支已把 instrumentation 改为 Google 当前提供的最高版本 API 34 Android TV 镜像，新增第 7 项遥控器测试尚待 CI 独立验证 |
+| GitHub Actions 自动构建 | 通过 | 运行 `43703658713` 的 build 与 instrumentation 作业均通过；仓库检查、28 项 JVM 测试、Android 构建、Release 签名路径和 API 34 Android TV 1080p 镜像上的 7 项设备测试通过 |
 | release 签名、升级和回滚 | 部分通过 | 一次性 JKS 的签名构建和 APK 完整性已验证；尚未配置用户持有的 release keystore，也未在同一电视验证升级/回滚 |
 
 本地构建命令：
@@ -76,4 +76,4 @@ make android-device-check
 ./scripts/verify-android-device.sh --with-tests
 ```
 
-GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43698814265`：完整构建、临时 release 签名校验和 API 35 通用镜像的 6 项设备测试均通过，并成功上传 APK 与测试报告；当前分支已将后续 instrumentation 切换为 Google 当前提供的最高版本 API 34 `android-tv` 系统镜像。6 项包括 5 项 Room/数据行为测试和 1 项完整 Activity 的首次设置 DPAD 焦点测试。本机 Android TV API 36 模拟器已进一步通过新增遥控器路径后的 7 项设备测试和启动冒烟检查。后续提交仍以各自运行结果为准。构建与 Lint 使用两个串行的 `--no-parallel` Gradle 调用，避免 Lint 在 Hilt release 源码重建期间读取到已替换的中间文件。
+GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43703658713`：完整构建、28 项 JVM 测试、临时 release 签名校验和 API 34 Android TV 1080p 镜像的 7 项设备测试均通过，并成功上传 APK 与测试报告。7 项包括 5 项 Room/数据行为测试、1 项完整 Activity 的首次设置 DPAD 焦点测试，以及 1 项首页、播放器两级返回和设置页关键路径测试；系统返回通过 Activity 的 `OnBackPressedDispatcher` 验证，实体遥控器按键注入仍归入实机验收。本机 Android TV API 36 模拟器也已通过同一组 7 项设备测试和启动冒烟检查。后续提交仍以各自运行结果为准。构建与 Lint 使用两个串行的 `--no-parallel` Gradle 调用，避免 Lint 在 Hilt release 源码重建期间读取到已替换的中间文件。
