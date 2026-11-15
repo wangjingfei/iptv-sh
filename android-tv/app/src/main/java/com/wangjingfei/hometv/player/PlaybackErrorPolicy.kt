@@ -31,4 +31,10 @@ object PlaybackErrorPolicy {
             retryDelaysMillis = retryDelays,
         )
     }
+
+    fun firstFrameTimeout(): PlaybackFailure = PlaybackFailure(
+        conclusion = "频道长时间没有画面",
+        detail = "频道在 30 秒内没有出现首帧，可能是电视不支持该频道编码，或直播流不完整；请重试、换台或查看诊断",
+        retryDelaysMillis = emptyList(),
+    )
 }

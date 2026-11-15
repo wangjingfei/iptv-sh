@@ -30,6 +30,7 @@
     <string name="live_now">正在直播</string>
     <string name="next_program_with_time">接下来 %1$s  %2$s</string>
     <string name="retry">重试</string>
+    <string name="opening_channel">正在打开频道</string>
     <string name="view_diagnostics">查看诊断</string>
     <string name="back_home">返回首页</string>
     <string name="sources_and_sync">来源与同步</string>

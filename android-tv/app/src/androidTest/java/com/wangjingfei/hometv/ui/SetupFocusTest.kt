@@ -9,13 +9,25 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
+import androidx.test.core.app.ApplicationProvider
 import com.wangjingfei.hometv.MainActivity
+import com.wangjingfei.hometv.data.SettingsRepository
+import com.wangjingfei.hometv.data.SourceConfig
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
+import org.junit.rules.RuleChain
+import org.junit.rules.TestRule
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class SetupFocusTest {
+    private val composeRule = createAndroidComposeRule<MainActivity>()
+
     @get:Rule
-    val composeRule = createAndroidComposeRule<MainActivity>()
+    val rules: TestRule = RuleChain
+        .outerRule(ResetSetupRule())
+        .around(composeRule)
 
     @Test
     fun setupScreenSupportsDpadFocusPath() {
@@ -35,5 +47,19 @@ class SetupFocusTest {
             keyUp(Key.DirectionDown)
         }
         composeRule.onNodeWithTag("setup-test").assertIsFocused()
+    }
+
+    private class ResetSetupRule : ExternalResource() {
+        private val settings = SettingsRepository(ApplicationProvider.getApplicationContext())
+        private lateinit var originalConfig: SourceConfig
+
+        override fun before() = runBlocking {
+            originalConfig = settings.config.first()
+            settings.saveConfig(originalConfig.playlistUrl, originalConfig.epgUrl, complete = false)
+        }
+
+        override fun after() = runBlocking {
+            settings.saveConfig(originalConfig.playlistUrl, originalConfig.epgUrl, originalConfig.setupComplete)
+        }
     }
 }

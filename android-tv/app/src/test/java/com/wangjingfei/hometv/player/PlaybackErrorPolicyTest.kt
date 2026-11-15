@@ -25,4 +25,14 @@ class PlaybackErrorPolicyTest {
         assertThat(decoder.retryDelaysMillis).isEmpty()
         assertThat(decoder.conclusion).contains("回退")
     }
+
+    @Test
+    fun firstFrameTimeoutDoesNotGuessOneRootCauseOrRetryForever() {
+        val timeout = PlaybackErrorPolicy.firstFrameTimeout()
+
+        assertThat(timeout.conclusion).isEqualTo("频道长时间没有画面")
+        assertThat(timeout.detail).contains("电视不支持")
+        assertThat(timeout.detail).contains("直播流不完整")
+        assertThat(timeout.retryDelaysMillis).isEmpty()
+    }
 }

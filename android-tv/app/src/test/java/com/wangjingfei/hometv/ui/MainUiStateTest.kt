@@ -44,4 +44,10 @@ class MainUiStateTest {
         assertThat(probe.matches("http://192.168.1.3/list.m3u", "")).isFalse()
         assertThat(probe.matches("http://192.168.1.2/list.m3u", "http://192.168.1.2/epg.xml")).isFalse()
     }
+
+    @Test
+    fun keepsPlaybackFailureControlsVisible() {
+        assertThat(MainUiState(playbackError = null).shouldAutoHideControls).isTrue()
+        assertThat(MainUiState(playbackError = "解码失败").shouldAutoHideControls).isFalse()
+    }
 }
