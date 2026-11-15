@@ -66,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +97,7 @@ import com.wangjingfei.hometv.data.Channel
 import com.wangjingfei.hometv.data.DiagnosticStatus
 import com.wangjingfei.hometv.data.Programme
 import java.util.Date
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun HomeTvApp(viewModel: MainViewModel) {
@@ -299,7 +301,9 @@ private fun HomeScreen(state: MainUiState, viewModel: MainViewModel) {
                 }
                 LaunchedEffect(state.selectedGroup, state.searchQuery, state.channels.size) {
                     gridState.scrollToItem(focusIndex)
-                    runCatching { firstCardFocus.requestFocus() }
+                    snapshotFlow { gridState.layoutInfo.visibleItemsInfo.any { it.index == focusIndex } }
+                        .first { it }
+                    firstCardFocus.requestFocus()
                 }
             }
         }
