@@ -4,13 +4,16 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -53,15 +56,24 @@ jobs:
           test -n "$HOME_TV_KEY_PASSWORD" || { echo "缺少 HOME_TV_KEY_PASSWORD" >&2; exit 1; }
           ./gradlew --no-parallel testDebugUnitTest assembleRelease
 
-      - name: Generate update assets
+      - name: Generate and verify update assets
+        id: release
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          VERSION="${TAG_NAME#v}"
           APK_SOURCE="android-tv/app/build/outputs/apk/release/app-release.apk"
-          APK_NAME="home-tv-${VERSION}.apk"
           test -f "$APK_SOURCE" || { echo "未生成已签名 Release APK" >&2; exit 1; }
+          BADGING="$($ANDROID_HOME/build-tools/36.0.0/aapt2 dump badging "$APK_SOURCE")"
+          VERSION="$(printf '%s\n' "$BADGING" | sed -n "s/^package: .*versionName='\([^']*\)'.*/\1/p" | head -n 1)"
+          test -n "$VERSION" || { echo "无法从 APK 读取 versionName" >&2; exit 1; }
+          TAG_NAME="v$VERSION"
+          if [ "$EVENT_NAME" = "push" ] && [ "$REF_NAME" != "$TAG_NAME" ]; then
+            echo "标签 $REF_NAME 与 APK 版本 $VERSION 不一致" >&2
+            exit 1
+          fi
+          APK_NAME="home-tv-${VERSION}.apk"
           cp "$APK_SOURCE" "$RUNNER_TEMP/$APK_NAME"
           python3 scripts/generate-android-update-manifest.py \
             --apk "$RUNNER_TEMP/$APK_NAME" \
@@ -74,18 +86,42 @@ jobs:
           import json, sys
           manifest = json.load(open(sys.argv[1], encoding="utf-8"))
           if manifest["versionName"] != sys.argv[2]:
-              raise SystemExit(f"标签版本 {sys.argv[2]} 与 APK 版本 {manifest['versionName']} 不一致")
+              raise SystemExit(f"预期版本 {sys.argv[2]} 与更新清单版本 {manifest['versionName']} 不一致")
           PY
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-tv-release-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/home-tv-${{ steps.release.outputs.version }}.apk
+            ${{ runner.temp }}/update.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed release assets
+        uses: actions/download-artifact@v7
+        with:
+          name: android-tv-release-${{ github.sha }}
+          path: ${{ runner.temp }}/release
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          VERSION="${TAG_NAME#v}"
           gh release create "$TAG_NAME" \
-            "$RUNNER_TEMP/home-tv-${VERSION}.apk#家庭电视 ${VERSION} APK" \
-            "$RUNNER_TEMP/update.json#自动更新清单" \
+            "$RUNNER_TEMP/release/home-tv-${VERSION}.apk#家庭电视 ${VERSION} APK" \
+            "$RUNNER_TEMP/release/update.json#自动更新清单" \
             --verify-tag \
             --generate-notes \
             --title "家庭电视 ${VERSION}"
