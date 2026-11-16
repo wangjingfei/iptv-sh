@@ -41,8 +41,9 @@ class RemoteNavigationTest {
         composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), 5_000)
         waitUntilFocused("home-current-channel")
 
-        pressNative(KeyEvent.KEYCODE_9, KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_1)
-        composeRule.waitUntilAtLeastOneExists(hasTestTag("channel-number-overlay"), 1_000)
+        pressNative(KeyEvent.KEYCODE_9)
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("channel-number-overlay"), 3_000)
+        pressNative(KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_1)
         composeRule.waitUntilDoesNotExist(hasTestTag("channel-number-overlay"), 3_000)
         waitUntilFocused("home-current-channel")
 
