@@ -15,7 +15,7 @@
 | GitHub Release 工作流 | 已配置，未运行 | `v*` 标签触发；需要用户持有的 release keystore 与 4 个 Actions Secrets，当前尚未配置 |
 | Debug 自更新隔离 | 通过编译 | `.debug` 包明确禁用正式自更新，避免与正式包名/签名混淆 |
 | API 36 更新界面与遥控器 | 通过 | Android TV 1920×1080 模拟器检查无文字截断或控件重叠；方向键完整验证 XMLTV → 测试连接 → 诊断 → 手机设置 → 检查更新，并按反向路径返回 |
-| 临时签名发布清单 | 通过 | 一次性 JKS 构建的 v1/v2 签名 APK 可生成并回读 `update.json`；临时密钥和 APK 在验证后删除，不作为发布物 |
+| 临时签名发布清单 | 通过 | 一次性 JKS 构建的 v1/v2 签名 APK 可生成并回读 `update.json`；版本从 Release `BuildConfig.java` 动态读取，并与 APK 元数据和清单交叉核对；临时密钥和 APK 在验证后删除，不作为发布物 |
 | 安装授权返回状态 | 自动化策略通过，系统界面待实机验证 | 仅在处于待授权状态且系统已授予安装权限时自动继续；未授权返回和普通启动不会触发安装界面 |
 | `0.5.0` GitHub Actions | 通过 | PR #11 的运行 `43798476593` 中，build 与 API 34 Android TV instrumentation 均通过；包含 38 项 JVM 测试、更新后的设置页遥控器路径、Release/R8 与临时签名更新清单验证 |
 

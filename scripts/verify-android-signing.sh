@@ -78,6 +78,18 @@ if [ ! -f "$signed_apk" ]; then
     exit 1
 fi
 
+build_config="$android_root/app/build/generated/source/buildConfig/release/com/wangjingfei/hometv/BuildConfig.java"
+if [ ! -f "$build_config" ]; then
+    echo "错误：未找到 Release BuildConfig：$build_config" >&2
+    exit 1
+fi
+expected_version_code=$(sed -n 's/.*VERSION_CODE = \([0-9][0-9]*\);/\1/p' "$build_config" | head -n 1)
+expected_version_name=$(sed -n 's/.*VERSION_NAME = "\([^"]*\)";/\1/p' "$build_config" | head -n 1)
+if [ -z "$expected_version_code" ] || [ -z "$expected_version_name" ]; then
+    echo "错误：无法从 Release BuildConfig 读取版本" >&2
+    exit 1
+fi
+
 verify_log="$signing_tmp/apksigner.log"
 if ! "$apksigner" verify --verbose --print-certs "$signed_apk" >"$verify_log" 2>&1; then
     cat "$verify_log" >&2
@@ -87,25 +99,29 @@ grep -E '^(Verifies|Verified using v[12] scheme|Number of signers|Signer #1 cert
 manifest_json="$signing_tmp/update.json"
 python3 "$repo_root/scripts/generate-android-update-manifest.py" \
     --apk "$signed_apk" \
-    --apk-url "https://example.invalid/releases/download/v0.5.0/home-tv-0.5.0.apk" \
+    --apk-url "https://example.invalid/releases/download/v${expected_version_name}/home-tv-${expected_version_name}.apk" \
     --output "$manifest_json" \
     --aapt2 "$aapt2" \
     --apksigner "$apksigner" \
     --release-notes "临时签名检查"
-python3 - "$manifest_json" "$signed_apk" <<'PY'
+python3 - "$manifest_json" "$signed_apk" "$expected_version_code" "$expected_version_name" <<'PY'
 import hashlib
 import json
 import pathlib
 import sys
 
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
-apk = pathlib.Path(sys.argv[2]).read_bytes()
+apk_path = pathlib.Path(sys.argv[2])
+digest = hashlib.sha256()
+with apk_path.open("rb") as apk_file:
+    for chunk in iter(lambda: apk_file.read(1024 * 1024), b""):
+        digest.update(chunk)
 assert manifest["schemaVersion"] == 1
 assert manifest["packageName"] == "com.wangjingfei.hometv"
-assert manifest["versionCode"] == 5
-assert manifest["versionName"] == "0.5.0"
-assert manifest["apkSize"] == len(apk)
-assert manifest["apkSha256"] == hashlib.sha256(apk).hexdigest()
+assert manifest["versionCode"] == int(sys.argv[3])
+assert manifest["versionName"] == sys.argv[4]
+assert manifest["apkSize"] == apk_path.stat().st_size
+assert manifest["apkSha256"] == digest.hexdigest()
 assert len(manifest["certificateSha256"]) == 64
 PY
 if command -v sha256sum >/dev/null 2>&1; then

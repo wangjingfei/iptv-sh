@@ -149,4 +149,4 @@ python3 ../scripts/generate-android-update-manifest.py \
 make android-signing-check
 ```
 
-若 Release 输出目录已存在同名签名 APK，检查脚本会在运行期间暂存它，并在退出时恢复原文件。
+检查脚本从 Release 构建生成的 `BuildConfig.java` 读取当前版本，并核对 APK 实际元数据与 `update.json`，版本升级时无需在脚本中维护第二份版本常量。若 Release 输出目录已存在同名签名 APK，脚本会在运行期间暂存它，并在退出时恢复原文件。
