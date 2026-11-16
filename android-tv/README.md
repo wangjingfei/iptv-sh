@@ -142,6 +142,21 @@ git push origin v0.5.0
 
 标签必须与 `versionName` 完全一致。工作流会拒绝版本不一致、缺少密钥、未签名 APK 或无法读取证书的发布。发布前还必须先把当前电视上的 Debug 包手动替换为正式包；Debug 与 Release 的包名和签名不同，Android 无法把两者视为同一个应用。以后只要一直使用同一 release keystore，应用内更新即可保留设置和数据。
 
+构建和发布是两个独立 job：构建 job 只有仓库只读权限，发布 job 才有 Release 写权限。发布 job 不 checkout 源码，因此 `gh release create` 必须显式传入 `--repo "$GITHUB_REPOSITORY"`；否则 `--verify-tag` 会错误地尝试从当前目录读取本地 Git 仓库。如果签名构建与 artifact 上传已经成功、但发布命令失败，不得移动或重建版本标签，应先修复发布命令，再从原运行下载同一签名 artifact 创建 Release：
+
+```sh
+gh run download <运行编号> \
+  --repo wangjingfei/iptv-sh \
+  --name android-tv-release-<标签对应提交SHA> \
+  --dir /tmp/home-tv-release
+
+gh release create v0.5.0 \
+  --repo wangjingfei/iptv-sh \
+  /tmp/home-tv-release/home-tv-0.5.0.apk \
+  /tmp/home-tv-release/update.json \
+  --verify-tag --generate-notes --title '家庭电视 0.5.0'
+```
+
 本地也可从已签名 APK 生成相同格式的清单：
 
 ```sh

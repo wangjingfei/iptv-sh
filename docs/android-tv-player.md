@@ -529,6 +529,8 @@ Idle
 5. 标签触发的发布工作流构建已签名 APK，从 APK 实际元数据生成 `update.json`，校验标签版本，再创建 GitHub Release。
 6. 在一台非主用电视完成旧正式版到新正式版的升级，确认设置、频道缓存、播放和回滚路径后再扩大安装范围。
 
+构建与发布使用独立 job。发布 job 只下载签名 artifact，不 checkout 源码，因此调用 GitHub CLI 时必须显式指定 `--repo "$GITHUB_REPOSITORY"`。若签名构建和 artifact 上传已成功、但 Release 创建失败，应保留原标签，从该次运行下载原始 artifact 后重试发布；不得重新签名、移动标签或用另一份本地 APK 替换已验证资产。
+
 ## 15. 开发里程碑
 
 ### M0：流验证
