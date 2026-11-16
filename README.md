@@ -49,7 +49,7 @@ make live-check
 - `docs/`：网络拓扑、操作流程、故障排查、EPG 限制和 Android TV 应用规划。
 - `android-tv/`：Kotlin/Compose、Media3、Room 和 Hilt 实现的原生电视客户端。
 
-电视客户端的产品、交互、架构、测试和验收基线见 [Android TV 应用详细设计](docs/android-tv-player.md)。`0.5.0` 当前阶段的代码开发与正式签名 APK 交付已经完成，支持电视遥控器输入、局域网手机扫码配置，以及正式版启动检查、下载校验和系统确认安装流程；长期 release keystore、GitHub Secrets 和云端签名 dry-run 均已验证，本地测试与 CI 结果以[开发验证记录](docs/android-tv-test-report.md)为准。用户于 2026-11-16 决定暂时跳过物理电视验收，因此正式 GitHub Release、4K、长时间播放、手机实网扫码与同签名升级仍标记为延期，不能据此宣称已完成生产实机验收。
+电视客户端的产品、交互、架构、测试和验收基线见 [Android TV 应用详细设计](docs/android-tv-player.md)。`0.5.0` 当前阶段的代码开发、正式签名 APK 和 [GitHub Release](https://github.com/wangjingfei/iptv-sh/releases/tag/v0.5.0) 已经完成，自动更新清单的固定地址也已验证可用；长期 release keystore、GitHub Secrets、云端签名 dry-run 和正式发布资产均已核验，本地测试与 CI 结果以[开发验证记录](docs/android-tv-test-report.md)为准。用户于 2026-11-16 决定暂时跳过物理电视验收，因此 4K、长时间播放、手机实网扫码与同签名升级/回滚仍标记为延期，不能据此宣称已完成生产实机验收。
 
 ## 安全要求
 

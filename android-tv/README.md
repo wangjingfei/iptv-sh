@@ -1,6 +1,6 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0`，当前阶段的代码开发与正式签名 APK 交付已经完成，并实现正式版自更新流程；长期 release keystore 与 GitHub Secrets 已配置，云端签名 dry-run 已通过，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。设备测试覆盖播放列表失败保留频道、EPG 失败保留节目单，以及 EPG/HLS 故障分别诊断。用户于 2026-11-16 决定暂时跳过真实设备验证；正式 GitHub Release、物理电视遥控器、4K 解码、长时间播放、手机实网扫码和同签名升级均保留为延期项，不视为已经通过。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0`，当前阶段的代码开发、正式签名 APK 和 [GitHub Release](https://github.com/wangjingfei/iptv-sh/releases/tag/v0.5.0) 已经完成，并实现正式版自更新流程；长期 release keystore 与 GitHub Secrets 已配置，云端签名 dry-run、正式发布资产和固定更新地址均已验证，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。设备测试覆盖播放列表失败保留频道、EPG 失败保留节目单，以及 EPG/HLS 故障分别诊断。用户于 2026-11-16 决定暂时跳过真实设备验证；物理电视遥控器、4K 解码、长时间播放、手机实网扫码和同签名升级/回滚均保留为延期项，不视为已经通过。
 
 ## 已实现
 
@@ -126,21 +126,21 @@ https://github.com/wangjingfei/iptv-sh/releases/latest/download/update.json
 2759ad17a978eda42ee4d1821088114c03785e1beb538c7e2995e66cd3d376a6
 ```
 
-首次正式发布前先手动运行 dry-run，验证 GitHub Secrets、签名 APK 和更新清单。该操作使用只读仓库权限，只上传保留 7 天的 Actions artifact，不创建标签或 GitHub Release；只有标签事件的独立发布 job 拥有 Release 写权限。2026-11-16 的首次云端 dry-run `43816612953` 已通过，且复核确认未创建 Release：
+首次正式发布前先手动运行 dry-run，验证 GitHub Secrets、签名 APK 和更新清单。该操作使用只读仓库权限，只上传保留 7 天的 Actions artifact，不创建标签或 GitHub Release；只有标签事件的独立发布 job 拥有 Release 写权限。2026-11-16 的首次云端 dry-run `43816612953` 已通过，且复核确认当时未创建 Release：
 
 ```sh
 gh workflow run android-tv-release.yml --ref main --repo wangjingfei/iptv-sh
 gh run watch --repo wangjingfei/iptv-sh
 ```
 
-release keystore 是应用的长期身份。丢失后无法给已安装版本做原位升级；泄露后必须视为发布身份失陷。原始 JKS、密码和恢复说明必须保存在独立的加密备份中，不得提交到 Git。dry-run 通过后，发布 `0.5.0` 的命令为：
+release keystore 是应用的长期身份。丢失后无法给已安装版本做原位升级；泄露后必须视为发布身份失陷。原始 JKS、密码和恢复说明必须保存在独立的加密备份中，不得提交到 Git。`v0.5.0` 已于 2026-11-16 发布；后续版本必须先更新 `versionCode` 和 `versionName`，测试通过后再推送与版本名一致的标签：
 
 ```sh
-git tag v0.5.0
-git push origin v0.5.0
+git tag v0.5.1
+git push origin v0.5.1
 ```
 
-标签必须与 `versionName` 完全一致。工作流会拒绝版本不一致、缺少密钥、未签名 APK 或无法读取证书的发布。发布前还必须先把当前电视上的 Debug 包手动替换为正式包；Debug 与 Release 的包名和签名不同，Android 无法把两者视为同一个应用。以后只要一直使用同一 release keystore，应用内更新即可保留设置和数据。
+标签必须与 `versionName` 完全一致。工作流会拒绝版本不一致、缺少密钥、未签名 APK 或无法读取证书的发布。首次安装前还必须先把当前电视上的 Debug 包手动替换为正式包；Debug 与 Release 的包名和签名不同，Android 无法把两者视为同一个应用。以后只要一直使用同一 release keystore，应用内更新即可保留设置和数据。
 
 构建和发布是两个独立 job：构建 job 只有仓库只读权限，发布 job 才有 Release 写权限。发布 job 不 checkout 源码，因此 `gh release create` 必须显式传入 `--repo "$GITHUB_REPOSITORY"`；否则 `--verify-tag` 会错误地尝试从当前目录读取本地 Git 仓库。如果签名构建与 artifact 上传已经成功、但发布命令失败，不得移动或重建版本标签，应先修复发布命令，再从原运行下载同一签名 artifact 创建 Release：
 
