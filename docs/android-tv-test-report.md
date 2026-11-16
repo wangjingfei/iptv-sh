@@ -27,6 +27,7 @@
 | 长期正式签名身份 | 本地通过，尚未发布 | 2026-11-16 生成并加密备份长期 JKS，四个 Actions Secrets 已配置；本地签名 APK 的证书 SHA-256 为 `2759ad17a978eda42ee4d1821088114c03785e1beb538c7e2995e66cd3d376a6`，与导出证书一致 |
 | 云端正式签名产物 | 通过，artifact 保留 7 天 | 运行 `43816612953` 的 `home-tv-0.5.0.apk` 包名为 `com.wangjingfei.hometv`，APK SHA-256 为 `b95cbc1448489b68bd5839ed0f36177e9c95fad499eab5182a4430f2aa669de6`，大小 `3244246` 字节；版本、摘要、大小和证书指纹均与 `update.json` 一致 |
 | 后端故障降级 | 自动化通过，家庭实网待验收 | API 34 设备测试使用真实 Room 与 MockWebServer：首次同步写入频道和节目单后，EPG 返回 HTTP 503 时保留旧节目单并给出降级提示，播放列表返回 HTTP 503 时保留全部缓存；诊断项分别标记“节目单”和“HLS 服务”，不会把两种故障混为一谈 |
+| `v0.5.0` 首次正式发布 | 签名构建通过，Release 创建失败待恢复 | 标签 `v0.5.0` 触发运行 `43831107731`，签名构建、清单校验和 artifact 上传均通过；独立发布 job 因没有 checkout 且未给 `gh release create --verify-tag` 显式传仓库而报 `not a git repository`。签名资产未受影响，工作流改为传入 `--repo "$GITHUB_REPOSITORY"`，合并后从原 artifact 恢复发布，不移动标签 |
 
 以下 `0.4.0` 设备结论保留作为现有功能回归基线。本次已重新执行上表中的 API 36 更新设置路径；物理电视、真实 GitHub Release、系统安装确认和同签名升级仍未重新验证。
 

@@ -120,6 +120,7 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           gh release create "$TAG_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
             "$RUNNER_TEMP/release/home-tv-${VERSION}.apk#家庭电视 ${VERSION} APK" \
             "$RUNNER_TEMP/release/update.json#自动更新清单" \
             --verify-tag \
