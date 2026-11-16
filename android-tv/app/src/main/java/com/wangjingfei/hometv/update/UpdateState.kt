@@ -18,3 +18,6 @@ sealed interface UpdateState {
         val showPrompt: Boolean = false,
     ) : UpdateState
 }
+
+internal fun shouldResumePendingInstall(state: UpdateState, requiresPermission: Boolean): Boolean =
+    state is UpdateState.PermissionRequired && !requiresPermission

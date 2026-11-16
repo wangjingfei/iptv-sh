@@ -223,6 +223,10 @@ class MainViewModel @Inject constructor(
 
     fun reportUpdateActionFailure() = appUpdateManager.reportExternalActionFailure()
 
+    fun resumePendingUpdateInstall() {
+        appUpdateManager.resumePendingInstall()?.let(externalActionChannel::trySend)
+    }
+
     fun requestUpdateInstall() {
         if (appUpdateManager.requiresInstallPermission()) {
             appUpdateManager.markPermissionRequired()

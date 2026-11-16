@@ -1,6 +1,7 @@
 package com.wangjingfei.hometv.update
 
 import com.google.common.truth.Truth.assertThat
+import java.io.File
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -65,5 +66,26 @@ class UpdateManifestTest {
                 releaseNotes = "",
             )
         }
+    }
+
+    @Test
+    fun resumesInstallerOnlyAfterPendingPermissionIsGranted() {
+        val manifest = UpdateManifest(
+            schemaVersion = 1,
+            versionCode = 5,
+            versionName = "0.5.0",
+            packageName = "com.wangjingfei.hometv",
+            minSdk = 23,
+            apkUrl = "https://example.test/home-tv.apk",
+            apkSha256 = "a".repeat(64),
+            apkSize = 123456,
+            certificateSha256 = "b".repeat(64),
+            releaseNotes = "",
+        )
+        val pending = UpdateState.PermissionRequired(manifest, File("home-tv.apk"))
+
+        assertThat(shouldResumePendingInstall(pending, requiresPermission = true)).isFalse()
+        assertThat(shouldResumePendingInstall(pending, requiresPermission = false)).isTrue()
+        assertThat(shouldResumePendingInstall(UpdateState.Idle, requiresPermission = false)).isFalse()
     }
 }
