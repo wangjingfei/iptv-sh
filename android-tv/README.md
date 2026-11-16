@@ -1,6 +1,6 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并实现正式版自更新流程；GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。物理电视的完整遥控器路径、4K 解码、长时间播放、手机扫码配置和正式签名升级仍待实机验收。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并实现正式版自更新流程；长期 release keystore 与 GitHub Secrets 已配置，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。正式 GitHub Release、物理电视的完整遥控器路径、4K 解码、长时间播放、手机扫码配置和同签名升级仍待验收。
 
 ## 已实现
 
@@ -120,7 +120,20 @@ https://github.com/wangjingfei/iptv-sh/releases/latest/download/update.json
 - `HOME_TV_KEY_ALIAS`：签名别名。
 - `HOME_TV_KEY_PASSWORD`：签名私钥密码。
 
-release keystore 是应用的长期身份。丢失后无法给已安装版本做原位升级；泄露后必须视为发布身份失陷。应把原始 JKS、密码和恢复说明保存在独立的加密备份中，不得提交到 Git。配置完成后，发布 `0.5.0` 的命令为：
+当前长期签名证书 SHA-256 指纹为：
+
+```text
+2759ad17a978eda42ee4d1821088114c03785e1beb538c7e2995e66cd3d376a6
+```
+
+首次正式发布前先手动运行 dry-run，验证 GitHub Secrets、签名 APK 和更新清单。该操作使用只读仓库权限，只上传保留 7 天的 Actions artifact，不创建标签或 GitHub Release；只有标签事件的独立发布 job 拥有 Release 写权限：
+
+```sh
+gh workflow run android-tv-release.yml --ref main --repo wangjingfei/iptv-sh
+gh run watch --repo wangjingfei/iptv-sh
+```
+
+release keystore 是应用的长期身份。丢失后无法给已安装版本做原位升级；泄露后必须视为发布身份失陷。原始 JKS、密码和恢复说明必须保存在独立的加密备份中，不得提交到 Git。dry-run 通过后，发布 `0.5.0` 的命令为：
 
 ```sh
 git tag v0.5.0

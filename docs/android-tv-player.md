@@ -1,6 +1,6 @@
 # Android TV 应用详细设计
 
-> 状态：`0.5.0` 开发版已实现。在 `0.4.0` 的播放器、缓存、诊断、遥控器和手机扫码配置上，新增正式版自动检查、下载、完整性/签名校验及系统确认安装流程。相关 JVM 测试、本地编译和更新后的 API 34/API 36 Android TV 模拟器关键遥控器路径均已通过；真实 release keystore 升级和物理电视安装仍未验证，明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
+> 状态：`0.5.0` 开发版已实现。在 `0.4.0` 的播放器、缓存、诊断、遥控器和手机扫码配置上，新增正式版自动检查、下载、完整性/签名校验及系统确认安装流程。长期 release keystore 与 GitHub Secrets 已配置；相关 JVM 测试、本地编译和更新后的 API 34/API 36 Android TV 模拟器关键遥控器路径均已通过。正式 GitHub Release、同签名升级和物理电视安装仍未验证，明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
 
 ## 1. 产品定义
 
@@ -524,9 +524,10 @@ Idle
 
 1. 提前离线生成并备份长期 release keystore，不使用 CI 临时密钥。
 2. 将 keystore Base64 和三个密码/别名字段配置为 GitHub Actions Secrets。
-3. 更新 `versionCode` 和 `versionName`，测试通过后推送与版本名一致的 `v*` 标签。
-4. 发布工作流构建已签名 APK，从 APK 实际元数据生成 `update.json`，校验标签版本，再创建 GitHub Release。
-5. 在一台非主用电视完成旧正式版到新正式版的升级，确认设置、频道缓存、播放和回滚路径后再扩大安装范围。
+3. 手动运行发布工作流 dry-run，验证 GitHub Secrets、签名 APK 和 `update.json`；dry-run 不创建 Release。
+4. 更新 `versionCode` 和 `versionName`，测试通过后推送与版本名一致的 `v*` 标签。
+5. 标签触发的发布工作流构建已签名 APK，从 APK 实际元数据生成 `update.json`，校验标签版本，再创建 GitHub Release。
+6. 在一台非主用电视完成旧正式版到新正式版的升级，确认设置、频道缓存、播放和回滚路径后再扩大安装范围。
 
 ## 15. 开发里程碑
 
@@ -565,7 +566,8 @@ Idle
 - [x] 使用一次性临时 keystore 自动验证 release 签名构建和 APK 签名完整性；测试签名包不作为发布物。
 - [x] 实现 GitHub Release 更新检查、APK 下载、完整性/签名验证、未知来源授权和系统安装入口。
 - [x] 配置标签触发的签名构建、`update.json` 生成和 GitHub Release 发布工作流。
-- [ ] 配置用户持有的 release keystore，并在电视实测签名升级/回滚。
+- [x] 配置用户持有的长期 release keystore 和 GitHub Actions Secrets。
+- [ ] 在电视实测同签名升级/回滚。
 - [ ] 在目标电视上完成客厅距离验收。
 
 ## 16. v1 完成定义
