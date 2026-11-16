@@ -155,6 +155,12 @@ class AppUpdateManager @Inject constructor(
         _state.value = UpdateState.Ready(current.manifest, current.apk)
     }
 
+    fun resumePendingInstall(): Intent? {
+        if (!shouldResumePendingInstall(_state.value, requiresInstallPermission())) return null
+        markReadyAfterPermission()
+        return installerIntent()
+    }
+
     fun unknownSourcesIntent(): Intent = Intent(
         Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
         Uri.parse("package:${context.packageName}"),

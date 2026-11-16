@@ -48,6 +48,11 @@ class MainActivity : ComponentActivity() {
         viewModel.resumeAfterForeground()
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.resumePendingUpdateInstall()
+    }
+
     override fun onDestroy() {
         if (isFinishing) viewModel.releasePlayer()
         super.onDestroy()

@@ -141,7 +141,7 @@ python3 ../scripts/generate-android-update-manifest.py \
   --release-notes '新增应用内自动更新'
 ```
 
-首次安装或首次应用内更新时，电视可能要求为“家庭电视”开启“安装未知应用”。该授权只允许应用调用系统安装器，不会绕过系统的安装确认。Google Play Core 的应用内更新不支持 Android TV，因此本项目使用 GitHub Release 分发和 Android 系统安装界面。
+首次安装或首次应用内更新时，电视可能要求为“家庭电视”开启“安装未知应用”。授权完成并返回应用后会自动继续打开系统安装器；未授权返回时保留待安装状态，不会反复跳转。该授权只允许应用调用系统安装器，不会绕过系统的安装确认。Google Play Core 的应用内更新不支持 Android TV，因此本项目使用 GitHub Release 分发和 Android 系统安装界面。
 
 可使用一次性临时 keystore 验证 Gradle 签名配置与 APK 完整性；脚本结束后会删除临时密钥和测试签名 APK，不能把它当成正式发布包：
 
