@@ -1,6 +1,6 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并实现正式版自更新流程；长期 release keystore 与 GitHub Secrets 已配置，云端签名 dry-run 已通过，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。设备测试覆盖播放列表失败保留频道、EPG 失败保留节目单，以及 EPG/HLS 故障分别诊断。正式 GitHub Release、物理电视的完整遥控器路径、4K 解码、长时间播放、手机扫码配置和同签名升级仍待验收。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0`，当前阶段的代码开发与正式签名 APK 交付已经完成，并实现正式版自更新流程；长期 release keystore 与 GitHub Secrets 已配置，云端签名 dry-run 已通过，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。设备测试覆盖播放列表失败保留频道、EPG 失败保留节目单，以及 EPG/HLS 故障分别诊断。用户于 2026-11-16 决定暂时跳过真实设备验证；正式 GitHub Release、物理电视遥控器、4K 解码、长时间播放、手机实网扫码和同签名升级均保留为延期项，不视为已经通过。
 
 ## 已实现
 
@@ -58,7 +58,7 @@ adb shell am start -n com.wangjingfei.hometv.debug/com.wangjingfei.hometv.MainAc
 make android-device-check
 ```
 
-存在多个 ADB 设备时用 `ANDROID_TV_SERIAL=<序列号>` 指定目标。需要同时执行 8 项设备测试时运行：
+存在多个 ADB 设备时用 `ANDROID_TV_SERIAL=<序列号>` 指定目标。需要同时执行当前 9 项设备测试时运行：
 
 ```sh
 ./scripts/verify-android-device.sh --with-tests
