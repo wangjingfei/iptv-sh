@@ -2,7 +2,13 @@
 
 ## 当前结论
 
-`0.5.0` 开发版新增正式版自更新代码和标签发布工作流，并继续具备可重复构建的 Gradle 工程、单元测试、显式数据库迁移和可侧载 Debug APK。长期 release keystore 与四个 GitHub Actions Secrets 已配置，本地正式签名构建、更新清单规则和云端发布工作流 dry-run 已验证；真实 GitHub Release、系统安装确认和同签名升级仍待验证。
+`0.5.0` 当前阶段的代码开发与正式签名 APK 交付已经完成：仓库具备可重复构建的 Gradle 工程、单元测试、API 34 设备测试、显式数据库迁移、正式版自更新代码和标签发布工作流。长期 release keystore 与四个 GitHub Actions Secrets 已配置，本地正式签名构建、更新清单规则和云端发布工作流 dry-run 已验证。用户于 2026-11-16 决定暂时跳过真实设备验证；真实 GitHub Release、系统安装确认、4K/长时间播放和同签名升级明确延期，不得描述为已通过。
+
+## 当前验收范围
+
+- 当前完成状态：代码开发、自动化验证、长期签名配置、正式签名 APK 和手动安装说明。
+- 延期状态：物理电视安装、完整遥控器路径、家庭实网手机扫码、4K、连续播放一小时、Home/关屏恢复、真实 GitHub Release 和同签名升级/回滚。
+- 恢复实机验证时继续使用本文后面的步骤和原有生产验收标准，不因本次延期而删除或降低要求。
 
 ## 2026-11-16 自动更新开发验证
 
@@ -97,4 +103,4 @@ make android-device-check
 ./scripts/verify-android-device.sh --with-tests
 ```
 
-GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-15 已核验运行 `43711912704`：完整构建、35 项 JVM 测试、临时 release 签名校验和 API 34 Android TV 1080p 镜像的 8 项设备测试均通过，并成功上传 APK 与测试报告。8 项包括 5 项 Room/数据行为测试、2 项完整 Activity 的首次设置 DPAD/手机二维码测试，以及 1 项首页注入 `901` 数字键、播放器两级返回和设置页关键路径测试；系统返回通过 Activity 的 `OnBackPressedDispatcher` 验证，实体遥控器和手机实网扫码仍归入实机验收。本机 Android TV API 36 模拟器也已通过同一组 8 项设备测试和启动冒烟检查。后续提交仍以各自运行结果为准。构建与 Lint 使用两个串行的 `--no-parallel` Gradle 调用，避免 Lint 在 Hilt release 源码重建期间读取到已替换的中间文件。
+GitHub Actions 工作流位于 `.github/workflows/android-tv.yml`。2026-11-16 已核验 PR #17 的运行 `43826846641`：完整构建和 API 34 Android TV 1080p 镜像的 9 项设备测试均通过。9 项包括原有 5 项 Room/数据行为测试、2 项完整 Activity 的首次设置 DPAD/手机二维码测试、1 项首页数字键/播放器/设置关键路径测试，以及新增的 1 项真实 Room + MockWebServer 后端故障降级测试。系统返回通过 Activity 的 `OnBackPressedDispatcher` 验证，实体遥控器和手机实网扫码仍归入延期的实机验收。本机 Android TV API 36 模拟器此前也已通过原有 8 项设备测试和启动冒烟检查。后续提交仍以各自运行结果为准。构建与 Lint 使用两个串行的 `--no-parallel` Gradle 调用，避免 Lint 在 Hilt release 源码重建期间读取到已替换的中间文件。
