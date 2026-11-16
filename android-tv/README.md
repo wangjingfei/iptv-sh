@@ -1,6 +1,6 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.4.0` 开发版，已经能够生成带调试签名、可侧载的 APK；GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。物理电视的完整遥控器路径、4K 解码、长时间播放、手机扫码配置和正式签名升级仍待实机验收。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并实现正式版自更新流程；GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。物理电视的完整遥控器路径、4K 解码、长时间播放、手机扫码配置和正式签名升级仍待实机验收。
 
 ## 已实现
 
@@ -23,6 +23,9 @@
 - 支持清空节目单、最近观看和收藏，并对破坏性操作二次确认。
 - 设置页可保存默认字幕状态，并把播放中选择的音轨偏好恢复为自动。
 - Leanback 启动入口、横屏全屏、无触摸屏依赖和电视 banner。
+- 正式版启动两秒后异步检查 GitHub Release，每 24 小时最多自动检查一次；设置页可手动检查。
+- 下载 APK 后校验清单大小、SHA-256、包名、版本号和签名证书，再交给 Android 系统确认安装。
+- 开发版包名为 `com.wangjingfei.hometv.debug`，不会尝试安装正式版更新，避免形成两个包或破坏签名升级链。
 
 详细产品与验收基线见[《Android TV 应用详细设计》](../docs/android-tv-player.md)，当前验证结果见[《Android TV 开发验证记录》](../docs/android-tv-test-report.md)。
 
@@ -101,6 +104,44 @@ export HOME_TV_KEY_PASSWORD='...'
 ```
 
 四项变量不齐全时仍可验证 R8 构建，但输出文件是 `app-release-unsigned.apk`。正式签名后需要生成 SHA-256，并在同一台物理电视上验证安装、升级和回滚。
+
+### GitHub Release 自动更新
+
+应用固定读取以下 HTTPS 地址：
+
+```text
+https://github.com/wangjingfei/iptv-sh/releases/latest/download/update.json
+```
+
+`.github/workflows/android-tv-release.yml` 在推送 `v*` 标签时构建同一次签名的 APK，生成 `update.json`，再把两者发布到 GitHub Release。仓库需要预先配置四个 Actions Secrets：
+
+- `HOME_TV_KEYSTORE_BASE64`：长期 release keystore 的 Base64 内容。
+- `HOME_TV_STORE_PASSWORD`：keystore 密码。
+- `HOME_TV_KEY_ALIAS`：签名别名。
+- `HOME_TV_KEY_PASSWORD`：签名私钥密码。
+
+release keystore 是应用的长期身份。丢失后无法给已安装版本做原位升级；泄露后必须视为发布身份失陷。应把原始 JKS、密码和恢复说明保存在独立的加密备份中，不得提交到 Git。配置完成后，发布 `0.5.0` 的命令为：
+
+```sh
+git tag v0.5.0
+git push origin v0.5.0
+```
+
+标签必须与 `versionName` 完全一致。工作流会拒绝版本不一致、缺少密钥、未签名 APK 或无法读取证书的发布。发布前还必须先把当前电视上的 Debug 包手动替换为正式包；Debug 与 Release 的包名和签名不同，Android 无法把两者视为同一个应用。以后只要一直使用同一 release keystore，应用内更新即可保留设置和数据。
+
+本地也可从已签名 APK 生成相同格式的清单：
+
+```sh
+python3 ../scripts/generate-android-update-manifest.py \
+  --apk app/build/outputs/apk/release/app-release.apk \
+  --apk-url https://github.com/wangjingfei/iptv-sh/releases/download/v0.5.0/home-tv-0.5.0.apk \
+  --output /tmp/update.json \
+  --aapt2 "$ANDROID_HOME/build-tools/36.0.0/aapt2" \
+  --apksigner "$ANDROID_HOME/build-tools/36.0.0/apksigner" \
+  --release-notes '新增应用内自动更新'
+```
+
+首次安装或首次应用内更新时，电视可能要求为“家庭电视”开启“安装未知应用”。该授权只允许应用调用系统安装器，不会绕过系统的安装确认。Google Play Core 的应用内更新不支持 Android TV，因此本项目使用 GitHub Release 分发和 Android 系统安装界面。
 
 可使用一次性临时 keystore 验证 Gradle 签名配置与 APK 完整性；脚本结束后会删除临时密钥和测试签名 APK，不能把它当成正式发布包：
 

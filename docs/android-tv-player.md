@@ -1,6 +1,6 @@
 # Android TV 应用详细设计
 
-> 状态：`0.4.0` 开发版已实现。在 `0.3.0` 的播放器、缓存、诊断和遥控器能力上，新增局域网手机扫码配置：电视生成本地二维码与十分钟临时网页，手机提交来源后仍由电视测试并确认应用。35 项 JVM 测试及 API 34、API 36 Android TV 模拟器的 8 项设备测试已通过，明细见[《Android TV 开发验证记录》](android-tv-test-report.md)；物理电视、手机实网扫码、4K、长时间播放和真实 release keystore 升级仍未验证，因此尚未达到第 16 节的最终完成定义。
+> 状态：`0.5.0` 开发版已实现。在 `0.4.0` 的播放器、缓存、诊断、遥控器和手机扫码配置上，新增正式版自动检查、下载、完整性/签名校验及系统确认安装流程。相关 JVM 测试与本地编译已通过；既有 API 34、API 36 Android TV 模拟器的 8 项设备测试结论来自 `0.4.0`，本次更新界面和真实 release keystore 升级仍未在物理电视验证，明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
 
 ## 1. 产品定义
 
@@ -25,6 +25,7 @@ v1 必须做到：
 - 自动重试、诊断页、离线元数据缓存和 EPG 过期提示。
 - 适配五向遥控器、媒体键和常见数字键。
 - 生成可侧载安装的签名 APK；当前已有调试签名 APK，独立 release 签名仍属于 v1 收尾项。应用商店发布不属于 v1 必交范围。
+- 正式版从 GitHub Release 检查更新，下载并验证后调用 Android 系统安装界面；开发版不参与正式更新。
 
 ### 1.3 明确不做
 
@@ -497,6 +498,36 @@ EPG 路径与媒体路径独立：`iptv-epg` 故障只影响节目元数据，�
 - 每次保留上一个可安装 APK。新版本播放异常时，卸载前先导出非敏感诊断，随后安装上一版本；收藏和设置能否保留取决于是否使用同一签名和兼容数据库版本。
 - 后端接口变化必须先保持旧客户端兼容，再发布客户端更新。
 
+### 14.1 自动更新状态机
+
+```text
+Idle
+  -> Checking
+  -> UpToDate
+  -> Available
+  -> Downloading
+  -> Verifying
+  -> Ready
+  -> PermissionRequired（仅首次缺少安装来源授权）
+  -> Android 系统安装确认
+```
+
+- 启动两秒后异步检查，检查和下载都不占用播放器主线程；自动检查间隔为 24 小时，手动检查不受间隔限制。
+- `update.json` 必须是 schema v1，包含 `versionCode`、`versionName`、包名、最低 SDK、APK HTTPS 地址、文件大小、APK SHA-256、签名证书 SHA-256 和变更说明。
+- 下载上限为 500 MiB，先写入缓存中的 `.part` 文件；大小、哈希、包名、版本号或证书任一不一致都会删除文件并停止安装。
+- 候选 APK 的签名证书既要匹配更新清单，也要匹配当前已安装应用。即使 GitHub 账户或清单被错误修改，另一把密钥签出的 APK 也不能进入系统安装步骤。
+- Android 8.0 及以上首次需要为本应用开启“安装未知应用”，返回应用后继续调用系统安装器；最终安装仍由 Android 系统界面确认。
+- Debug 包使用 `.debug` 包名并禁用该流程。第一次从 Debug 切换到正式版必须手动安装，此后同一 release key 签名的版本可以原位升级。
+- 更新失败不影响直播、缓存和现有版本；用户可留在当前版本并从设置页重新检查或下载。
+
+### 14.2 发布清单
+
+1. 提前离线生成并备份长期 release keystore，不使用 CI 临时密钥。
+2. 将 keystore Base64 和三个密码/别名字段配置为 GitHub Actions Secrets。
+3. 更新 `versionCode` 和 `versionName`，测试通过后推送与版本名一致的 `v*` 标签。
+4. 发布工作流构建已签名 APK，从 APK 实际元数据生成 `update.json`，校验标签版本，再创建 GitHub Release。
+5. 在一台非主用电视完成旧正式版到新正式版的升级，确认设置、频道缓存、播放和回滚路径后再扩大安装范围。
+
 ## 15. 开发里程碑
 
 ### M0：流验证
@@ -532,6 +563,8 @@ EPG 路径与媒体路径独立：`iptv-epg` 故障只影响节目元数据，�
 - [x] TV banner、图标、Debug APK、未签名 Release APK、校验生成命令与安装说明。
 - [x] GitHub Actions 自动测试与 APK 构建工作流已配置。
 - [x] 使用一次性临时 keystore 自动验证 release 签名构建和 APK 签名完整性；测试签名包不作为发布物。
+- [x] 实现 GitHub Release 更新检查、APK 下载、完整性/签名验证、未知来源授权和系统安装入口。
+- [x] 配置标签触发的签名构建、`update.json` 生成和 GitHub Release 发布工作流。
 - [ ] 配置用户持有的 release keystore，并在电视实测签名升级/回滚。
 - [ ] 在目标电视上完成客厅距离验收。
 
@@ -558,5 +591,8 @@ EPG 路径与媒体路径独立：`iptv-epg` 故障只影响节目元数据，�
 - TV 应用质量要求：https://developer.android.com/docs/quality-guidelines/tv-app-quality
 - Media3 Android TV：https://developer.android.com/media/implement/surfaces/android-tv
 - Media3 HLS：https://developer.android.com/media/media3/exoplayer/hls
+- Android 应用内更新支持范围：https://developer.android.com/guide/playcore/in-app-updates
+- 单应用“安装未知应用”设置：https://developer.android.com/reference/android/provider/Settings#ACTION_MANAGE_UNKNOWN_APP_SOURCES
+- GitHub Release 与发布附件：https://docs.github.com/zh/repositories/releasing-projects-on-github/managing-releases-in-a-repository
 
-当前官方资料确认 Media3 HLS 支持 MPEG-TS 和常规直播，TV 应用必须可通过五向遥控器完整导航，并声明 Leanback 启动入口和不要求触摸屏。真实设备的解码能力仍然取决于电视硬件，不能只靠模拟器验证。
+当前官方资料确认 Media3 HLS 支持 MPEG-TS 和常规直播，TV 应用必须可通过五向遥控器完整导航，并声明 Leanback 启动入口和不要求触摸屏。Google Play 应用内更新不支持 Android TV，因此本项目使用 GitHub Release 清单、应用内校验下载和 Android 系统安装界面。真实设备的解码能力与安装交互仍然取决于电视硬件和系统，不能只靠模拟器验证。

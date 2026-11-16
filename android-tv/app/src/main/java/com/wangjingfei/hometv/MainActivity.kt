@@ -7,10 +7,14 @@ import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.wangjingfei.hometv.ui.HomeTvApp
 import com.wangjingfei.hometv.ui.HomeTvTheme
 import com.wangjingfei.hometv.ui.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -24,6 +28,14 @@ class MainActivity : ComponentActivity() {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
         setContent { HomeTvTheme { HomeTvApp(viewModel) } }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.externalActions.collect { intent ->
+                    runCatching { startActivity(intent) }
+                        .onFailure { viewModel.reportUpdateActionFailure() }
+                }
+            }
+        }
     }
 
     override fun onStop() {

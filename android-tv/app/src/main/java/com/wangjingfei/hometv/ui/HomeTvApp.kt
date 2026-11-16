@@ -99,6 +99,7 @@ import com.wangjingfei.hometv.R
 import com.wangjingfei.hometv.data.Channel
 import com.wangjingfei.hometv.data.DiagnosticStatus
 import com.wangjingfei.hometv.data.Programme
+import com.wangjingfei.hometv.update.UpdateState
 import java.util.Date
 import kotlinx.coroutines.flow.first
 
@@ -114,6 +115,7 @@ fun HomeTvApp(viewModel: MainViewModel) {
         AppScreen.PLAYER -> PlayerScreen(state, viewModel)
         AppScreen.SETTINGS -> SettingsScreen(state, viewModel)
     }
+    AppUpdateDialog(state.updateState, viewModel)
 }
 
 @Composable
@@ -610,6 +612,10 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
     val backFocus = remember { FocusRequester() }
     val playlistFocus = remember { FocusRequester() }
     val epgFocus = remember { FocusRequester() }
+    val testFocus = remember { FocusRequester() }
+    val diagnosticsFocus = remember { FocusRequester() }
+    val phoneFocus = remember { FocusRequester() }
+    val updateFocus = remember { FocusRequester() }
     LaunchedEffect(state.sourceDraftVersion) {
         state.sourceDraft?.let {
             playlist = it.playlistUrl
@@ -617,7 +623,10 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
         }
     }
     Surface(color = Ink, modifier = Modifier.fillMaxSize().testTag("settings-root")) {
-        Row(Modifier.fillMaxSize().padding(44.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 44.dp, vertical = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(40.dp),
+        ) {
             Column(Modifier.weight(1.15f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
@@ -628,7 +637,7 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     ) { Icon(Icons.Default.Home, stringResource(R.string.back_home)) }
                     Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.sources_and_sync), fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     playlist,
                     { playlist = it; viewModel.invalidateSourceTest() },
@@ -650,7 +659,7 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                         }
                         .testTag("settings-playlist"),
                 )
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     epg,
                     { epg = it; viewModel.invalidateSourceTest() },
@@ -658,31 +667,57 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                         .onPreviewKeyEvent { event ->
-                            if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN && event.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                                playlistFocus.requestFocus()
-                                true
-                            } else {
-                                false
+                            if (event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                            when (event.nativeKeyEvent.keyCode) {
+                                KeyEvent.KEYCODE_DPAD_UP -> { playlistFocus.requestFocus(); true }
+                                KeyEvent.KEYCODE_DPAD_DOWN -> { testFocus.requestFocus(); true }
+                                else -> false
                             }
                         }
                         .focusRequester(epgFocus)
-                        .focusProperties { up = playlistFocus }
+                        .focusProperties {
+                            up = playlistFocus
+                            down = testFocus
+                        }
                         .testTag("settings-epg"),
                 )
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = { viewModel.testSources(playlist, epg) }, enabled = !state.isTestingSources && !state.isSyncing) {
+                    Button(
+                        onClick = { viewModel.testSources(playlist, epg) },
+                        enabled = !state.isTestingSources && !state.isSyncing,
+                        modifier = Modifier.focusRequester(testFocus)
+                            .focusProperties {
+                                up = epgFocus
+                                right = diagnosticsFocus
+                            }
+                            .testTag("settings-test"),
+                    ) {
                         if (state.isTestingSources) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Icon(Icons.Default.CheckCircle, null)
                         Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.test_connection))
                     }
-                    Button(onClick = { viewModel.runDiagnostics(playlist, epg) }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                    Button(
+                        onClick = { viewModel.runDiagnostics(playlist, epg) },
+                        colors = settingsButtonColors(),
+                        modifier = Modifier.focusRequester(diagnosticsFocus)
+                            .focusProperties {
+                                left = testFocus
+                                right = phoneFocus
+                            }
+                            .testTag("settings-diagnostics"),
+                    ) {
                         Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.run_diagnostics))
                     }
                     Button(
                         onClick = { viewModel.startRemoteSetup(playlist, epg) },
                         enabled = !state.isTestingSources && !state.isSyncing,
-                        colors = ButtonDefaults.buttonColors(containerColor = PanelRaised),
-                        modifier = Modifier.testTag("settings-phone"),
+                        colors = settingsButtonColors(),
+                        modifier = Modifier.focusRequester(phoneFocus)
+                            .focusProperties {
+                                left = diagnosticsFocus
+                                right = updateFocus
+                            }
+                            .testTag("settings-phone"),
                     ) {
                         Icon(Icons.Default.QrCode2, null); Spacer(Modifier.width(7.dp)); Text(stringResource(R.string.phone_setup))
                     }
@@ -694,11 +729,11 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     }
                 }
                 state.message?.let { Text(it, color = TextMuted, modifier = Modifier.padding(top = 14.dp)) }
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.playback_preferences), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = viewModel::toggleSubtitles, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                    Button(onClick = viewModel::toggleSubtitles, colors = settingsButtonColors()) {
                         Icon(Icons.Default.Subtitles, null)
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(if (state.subtitlesEnabled) R.string.subtitles_default_on else R.string.subtitles_default_off))
@@ -706,7 +741,7 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     Button(
                         onClick = viewModel::resetAudioPreference,
                         enabled = state.audioLabel != null,
-                        colors = ButtonDefaults.buttonColors(containerColor = PanelRaised),
+                        colors = settingsButtonColors(),
                     ) {
                         Icon(Icons.Default.Headphones, null)
                         Spacer(Modifier.width(6.dp))
@@ -716,7 +751,7 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                         )
                     }
                 }
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.local_data), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 Text(
                     stringResource(
@@ -728,13 +763,13 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                 )
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = { confirmAction = "epg" }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                    Button(onClick = { confirmAction = "epg" }, colors = settingsButtonColors()) {
                         Icon(Icons.Default.DeleteSweep, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.clear_epg))
                     }
-                    Button(onClick = { confirmAction = "history" }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                    Button(onClick = { confirmAction = "history" }, colors = settingsButtonColors()) {
                         Icon(Icons.Default.History, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.clear_history))
                     }
-                    Button(onClick = { confirmAction = "favorites" }, colors = ButtonDefaults.buttonColors(containerColor = PanelRaised)) {
+                    Button(onClick = { confirmAction = "favorites" }, colors = settingsButtonColors()) {
                         Icon(Icons.Default.RestartAlt, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.reset_favorites))
                     }
                 }
@@ -757,6 +792,12 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
+                AppUpdatePanel(
+                    state.updateState,
+                    viewModel,
+                    Modifier.focusRequester(updateFocus).focusProperties { left = phoneFocus },
+                )
+                Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), color = TextMuted, fontSize = 16.sp)
             }
         }
@@ -784,6 +825,148 @@ private fun SettingsScreen(state: MainUiState, viewModel: MainViewModel) {
         }) { confirmAction = null }
     }
     LaunchedEffect(Unit) { backFocus.requestFocus() }
+}
+
+@Composable
+private fun AppUpdatePanel(
+    updateState: UpdateState,
+    viewModel: MainViewModel,
+    updateButtonModifier: Modifier = Modifier,
+) {
+    Text(stringResource(R.string.app_update), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+    Spacer(Modifier.height(6.dp))
+    Text(updateStatusText(updateState), color = TextMuted, fontSize = 16.sp)
+    Spacer(Modifier.height(8.dp))
+    val checking = updateState is UpdateState.Checking
+    val downloading = updateState is UpdateState.Downloading || updateState is UpdateState.Verifying
+    Button(
+        onClick = {
+            when (updateState) {
+                is UpdateState.Available, is UpdateState.Error -> {
+                    if (updateState is UpdateState.Error && updateState.apk != null) {
+                        viewModel.requestUpdateInstall()
+                        return@Button
+                    }
+                    val hasDownload = updateState is UpdateState.Available ||
+                        (updateState is UpdateState.Error && updateState.manifest != null)
+                    if (hasDownload) viewModel.downloadUpdate() else viewModel.checkForUpdate()
+                }
+                is UpdateState.Ready, is UpdateState.PermissionRequired -> viewModel.requestUpdateInstall()
+                else -> viewModel.checkForUpdate()
+            }
+        },
+        enabled = !checking && !downloading,
+        colors = settingsButtonColors(),
+        modifier = updateButtonModifier.testTag("settings-update"),
+    ) {
+        if (checking || downloading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        else Icon(Icons.Default.Refresh, null)
+        Spacer(Modifier.width(7.dp))
+        Text(
+            when (updateState) {
+                is UpdateState.Available -> stringResource(R.string.download_update)
+                is UpdateState.Error -> when {
+                    updateState.apk != null -> stringResource(R.string.retry_install)
+                    updateState.manifest != null -> stringResource(R.string.retry_download)
+                    else -> stringResource(R.string.check_update)
+                }
+                is UpdateState.Ready, is UpdateState.PermissionRequired -> stringResource(R.string.install_update)
+                is UpdateState.Checking -> stringResource(R.string.checking_update)
+                is UpdateState.Downloading, is UpdateState.Verifying -> stringResource(R.string.updating)
+                else -> stringResource(R.string.check_update)
+            },
+        )
+    }
+}
+
+@Composable
+private fun settingsButtonColors() = ButtonDefaults.buttonColors(
+    containerColor = PanelRaised,
+    contentColor = TextPrimary,
+    disabledContainerColor = PanelRaised.copy(alpha = 0.55f),
+    disabledContentColor = TextMuted,
+)
+
+@Composable
+private fun updateStatusText(updateState: UpdateState): String = when (updateState) {
+    UpdateState.Idle -> stringResource(R.string.update_not_checked)
+    is UpdateState.Checking -> stringResource(R.string.checking_update)
+    is UpdateState.UpToDate -> stringResource(R.string.already_latest)
+    is UpdateState.Available -> stringResource(R.string.update_available, updateState.manifest.versionName)
+    is UpdateState.Downloading -> stringResource(R.string.downloading_update, (updateState.progress * 100).toInt())
+    is UpdateState.Verifying -> stringResource(R.string.verifying_update)
+    is UpdateState.Ready -> stringResource(R.string.update_ready, updateState.manifest.versionName)
+    is UpdateState.PermissionRequired -> stringResource(R.string.install_permission_required)
+    is UpdateState.Error -> updateState.message
+}
+
+@Composable
+private fun AppUpdateDialog(updateState: UpdateState, viewModel: MainViewModel) {
+    when (updateState) {
+        is UpdateState.Available -> if (updateState.showPrompt) {
+            AlertDialog(
+                onDismissRequest = viewModel::dismissUpdatePrompt,
+                title = { Text(stringResource(R.string.update_available_title, updateState.manifest.versionName)) },
+                text = {
+                    Column {
+                        Text(stringResource(R.string.update_available_detail))
+                        if (updateState.manifest.releaseNotes.isNotBlank()) {
+                            Spacer(Modifier.height(12.dp))
+                            Text(updateState.manifest.releaseNotes, color = TextMuted)
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = viewModel::downloadUpdate) { Text(stringResource(R.string.download_and_install)) } },
+                dismissButton = { TextButton(onClick = viewModel::dismissUpdatePrompt) { Text(stringResource(R.string.later)) } },
+            )
+        }
+        is UpdateState.Downloading -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.downloading_title, updateState.manifest.versionName)) },
+            text = {
+                Column {
+                    LinearProgressIndicator(progress = { updateState.progress }, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(10.dp))
+                    Text(stringResource(R.string.downloading_update, (updateState.progress * 100).toInt()), color = TextMuted)
+                }
+            },
+            confirmButton = {},
+        )
+        is UpdateState.Verifying -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.verifying_update)) },
+            text = { Text(stringResource(R.string.verifying_update_detail)) },
+            confirmButton = {},
+        )
+        is UpdateState.Ready -> if (updateState.showPrompt) AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.update_ready_title)) },
+            text = { Text(stringResource(R.string.update_ready_detail, updateState.manifest.versionName)) },
+            confirmButton = { TextButton(onClick = viewModel::requestUpdateInstall) { Text(stringResource(R.string.install_update)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissUpdatePrompt) { Text(stringResource(R.string.later)) } },
+        )
+        is UpdateState.PermissionRequired -> if (updateState.showPrompt) AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.install_permission_title)) },
+            text = { Text(stringResource(R.string.install_permission_detail)) },
+            confirmButton = { TextButton(onClick = viewModel::requestUpdateInstall) { Text(stringResource(R.string.open_system_settings)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissUpdatePrompt) { Text(stringResource(R.string.later)) } },
+        )
+        is UpdateState.Error -> if (updateState.manifest != null && updateState.showPrompt) {
+            AlertDialog(
+                onDismissRequest = viewModel::dismissUpdatePrompt,
+                title = { Text(stringResource(R.string.update_failed_title)) },
+                text = { Text(updateState.message) },
+                confirmButton = {
+                    TextButton(onClick = if (updateState.apk != null) viewModel::requestUpdateInstall else viewModel::downloadUpdate) {
+                        Text(stringResource(if (updateState.apk != null) R.string.retry_install else R.string.retry_download))
+                    }
+                },
+                dismissButton = { TextButton(onClick = viewModel::dismissUpdatePrompt) { Text(stringResource(R.string.later)) } },
+            )
+        }
+        else -> Unit
+    }
 }
 
 @Composable

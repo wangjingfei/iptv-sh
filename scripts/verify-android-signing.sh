@@ -15,8 +15,9 @@ if [ -z "$sdk_root" ]; then
 fi
 
 apksigner="$sdk_root/build-tools/36.0.0/apksigner"
-if [ ! -x "$apksigner" ]; then
-    echo "错误：未找到 $apksigner" >&2
+aapt2="$sdk_root/build-tools/36.0.0/aapt2"
+if [ ! -x "$apksigner" ] || [ ! -x "$aapt2" ]; then
+    echo "错误：未找到 Android 36 apksigner 或 aapt2" >&2
     exit 1
 fi
 
@@ -83,10 +84,34 @@ if ! "$apksigner" verify --verbose --print-certs "$signed_apk" >"$verify_log" 2>
     exit 1
 fi
 grep -E '^(Verifies|Verified using v[12] scheme|Number of signers|Signer #1 certificate DN|Signer #1 certificate SHA-256 digest)' "$verify_log"
+manifest_json="$signing_tmp/update.json"
+python3 "$repo_root/scripts/generate-android-update-manifest.py" \
+    --apk "$signed_apk" \
+    --apk-url "https://example.invalid/releases/download/v0.5.0/home-tv-0.5.0.apk" \
+    --output "$manifest_json" \
+    --aapt2 "$aapt2" \
+    --apksigner "$apksigner" \
+    --release-notes "临时签名检查"
+python3 - "$manifest_json" "$signed_apk" <<'PY'
+import hashlib
+import json
+import pathlib
+import sys
+
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+apk = pathlib.Path(sys.argv[2]).read_bytes()
+assert manifest["schemaVersion"] == 1
+assert manifest["packageName"] == "com.wangjingfei.hometv"
+assert manifest["versionCode"] == 5
+assert manifest["versionName"] == "0.5.0"
+assert manifest["apkSize"] == len(apk)
+assert manifest["apkSha256"] == hashlib.sha256(apk).hexdigest()
+assert len(manifest["certificateSha256"]) == 64
+PY
 if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$signed_apk"
 else
     shasum -a 256 "$signed_apk"
 fi
 
-echo "通过：临时 release keystore 构建和 APK 签名校验成功；测试 APK 已安排删除"
+echo "通过：临时 release keystore、APK 签名和更新清单校验成功；测试 APK 已安排删除"
