@@ -155,6 +155,8 @@ dependencies {
     androidTestImplementation("androidx.test:rules:1.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.room:room-testing:2.7.2")
+    androidTestImplementation("com.google.truth:truth:1.4.5")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

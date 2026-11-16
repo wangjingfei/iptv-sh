@@ -1,6 +1,6 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并实现正式版自更新流程；长期 release keystore 与 GitHub Secrets 已配置，云端签名 dry-run 已通过，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。正式 GitHub Release、物理电视的完整遥控器路径、4K 解码、长时间播放、手机扫码配置和同签名升级仍待验收。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本为 `0.5.0` 开发版，已经能够生成带调试签名、可侧载的 APK，并实现正式版自更新流程；长期 release keystore 与 GitHub Secrets 已配置，云端签名 dry-run 已通过，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。设备测试覆盖播放列表失败保留频道、EPG 失败保留节目单，以及 EPG/HLS 故障分别诊断。正式 GitHub Release、物理电视的完整遥控器路径、4K 解码、长时间播放、手机扫码配置和同签名升级仍待验收。
 
 ## 已实现
 
