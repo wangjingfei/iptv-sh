@@ -1,0 +1,91 @@
+name: 发布 Android TV
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Install Android SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Restore release keystore
+        env:
+          HOME_TV_KEYSTORE_BASE64: ${{ secrets.HOME_TV_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$HOME_TV_KEYSTORE_BASE64" || { echo "缺少 HOME_TV_KEYSTORE_BASE64" >&2; exit 1; }
+          printf '%s' "$HOME_TV_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/home-tv-release.jks"
+          chmod 600 "$RUNNER_TEMP/home-tv-release.jks"
+
+      - name: Test and build signed release
+        working-directory: android-tv
+        env:
+          HOME_TV_KEYSTORE: ${{ runner.temp }}/home-tv-release.jks
+          HOME_TV_STORE_PASSWORD: ${{ secrets.HOME_TV_STORE_PASSWORD }}
+          HOME_TV_KEY_ALIAS: ${{ secrets.HOME_TV_KEY_ALIAS }}
+          HOME_TV_KEY_PASSWORD: ${{ secrets.HOME_TV_KEY_PASSWORD }}
+        run: |
+          test -n "$HOME_TV_STORE_PASSWORD" || { echo "缺少 HOME_TV_STORE_PASSWORD" >&2; exit 1; }
+          test -n "$HOME_TV_KEY_ALIAS" || { echo "缺少 HOME_TV_KEY_ALIAS" >&2; exit 1; }
+          test -n "$HOME_TV_KEY_PASSWORD" || { echo "缺少 HOME_TV_KEY_PASSWORD" >&2; exit 1; }
+          ./gradlew --no-parallel testDebugUnitTest assembleRelease
+
+      - name: Generate update assets
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          APK_SOURCE="android-tv/app/build/outputs/apk/release/app-release.apk"
+          APK_NAME="home-tv-${VERSION}.apk"
+          test -f "$APK_SOURCE" || { echo "未生成已签名 Release APK" >&2; exit 1; }
+          cp "$APK_SOURCE" "$RUNNER_TEMP/$APK_NAME"
+          python3 scripts/generate-android-update-manifest.py \
+            --apk "$RUNNER_TEMP/$APK_NAME" \
+            --apk-url "https://github.com/$REPOSITORY/releases/download/$TAG_NAME/$APK_NAME" \
+            --output "$RUNNER_TEMP/update.json" \
+            --aapt2 "$ANDROID_HOME/build-tools/36.0.0/aapt2" \
+            --apksigner "$ANDROID_HOME/build-tools/36.0.0/apksigner" \
+            --release-notes "家庭电视 ${VERSION} 更新，详细变更见 GitHub Release。"
+          python3 - "$RUNNER_TEMP/update.json" "$VERSION" <<'PY'
+          import json, sys
+          manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+          if manifest["versionName"] != sys.argv[2]:
+              raise SystemExit(f"标签版本 {sys.argv[2]} 与 APK 版本 {manifest['versionName']} 不一致")
+          PY
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          gh release create "$TAG_NAME" \
+            "$RUNNER_TEMP/home-tv-${VERSION}.apk#家庭电视 ${VERSION} APK" \
+            "$RUNNER_TEMP/update.json#自动更新清单" \
+            --verify-tag \
+            --generate-notes \
+            --title "家庭电视 ${VERSION}"

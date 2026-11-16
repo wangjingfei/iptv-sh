@@ -1,5 +1,6 @@
 package com.wangjingfei.hometv.ui
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.PlaybackException
@@ -23,6 +24,8 @@ import com.wangjingfei.hometv.remote.RemoteSetupCoordinator
 import com.wangjingfei.hometv.remote.RemoteSetupPhase
 import com.wangjingfei.hometv.remote.RemoteSetupSession
 import com.wangjingfei.hometv.remote.RemoteSourceSubmission
+import com.wangjingfei.hometv.update.AppUpdateManager
+import com.wangjingfei.hometv.update.UpdateState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import java.net.URI
@@ -30,11 +33,13 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel as CoroutineChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 enum class AppScreen { SETUP, HOME, PLAYER, SETTINGS }
@@ -73,6 +78,7 @@ data class MainUiState(
     val sourceDraft: SourceDraft? = null,
     val sourceDraftVersion: Long = 0L,
     val remoteSetup: RemoteSetupSession? = null,
+    val updateState: UpdateState = UpdateState.Idle,
 ) {
     val shouldKeepScreenOn: Boolean get() = isPlaying
     val isPlaybackActive: Boolean get() = playWhenReady && playbackError == null
@@ -110,9 +116,12 @@ class MainViewModel @Inject constructor(
     val playerManager: PlayerManager,
     private val networkMonitor: NetworkMonitor,
     private val remoteSetupCoordinator: RemoteSetupCoordinator,
+    private val appUpdateManager: AppUpdateManager,
 ) : ViewModel(), Player.Listener {
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+    private val externalActionChannel = CoroutineChannel<Intent>(CoroutineChannel.BUFFERED)
+    val externalActions = externalActionChannel.receiveAsFlow()
     private var controlsJob: Job? = null
     private var numericJob: Job? = null
     private var switchJob: Job? = null
@@ -120,6 +129,8 @@ class MainViewModel @Inject constructor(
     private var bufferingJob: Job? = null
     private var firstFrameJob: Job? = null
     private var remoteSetupExpiryJob: Job? = null
+    private var updateCheckJob: Job? = null
+    private var updateDownloadJob: Job? = null
     private var firstFrameChannelId: String? = null
     private var retryCount = 0
 
@@ -161,6 +172,11 @@ class MainViewModel @Inject constructor(
             remoteSetupCoordinator.submissions.collect(::handleRemoteSubmission)
         }
         viewModelScope.launch {
+            appUpdateManager.state.collect { updateState ->
+                _uiState.value = _uiState.value.copy(updateState = updateState)
+            }
+        }
+        viewModelScope.launch {
             repository.channels.collect { channels ->
                 val current = _uiState.value
                 _uiState.value = current.copy(
@@ -185,6 +201,36 @@ class MainViewModel @Inject constructor(
                 if (settings.config.first().setupComplete) sync()
             }
         }
+        viewModelScope.launch {
+            delay(2_000)
+            appUpdateManager.check()
+        }
+    }
+
+    fun checkForUpdate() {
+        if (updateCheckJob?.isActive == true) return
+        updateCheckJob = viewModelScope.launch { appUpdateManager.check(manual = true) }
+    }
+
+    fun downloadUpdate() {
+        if (updateDownloadJob?.isActive == true) return
+        updateDownloadJob = viewModelScope.launch {
+            if (appUpdateManager.download()) requestUpdateInstall()
+        }
+    }
+
+    fun dismissUpdatePrompt() = appUpdateManager.dismissPrompt()
+
+    fun reportUpdateActionFailure() = appUpdateManager.reportExternalActionFailure()
+
+    fun requestUpdateInstall() {
+        if (appUpdateManager.requiresInstallPermission()) {
+            appUpdateManager.markPermissionRequired()
+            externalActionChannel.trySend(appUpdateManager.unknownSourcesIntent())
+            return
+        }
+        appUpdateManager.markReadyAfterPermission()
+        appUpdateManager.installerIntent()?.let(externalActionChannel::trySend)
     }
 
     fun testSources(playlistUrl: String, epgUrl: String) {
@@ -457,6 +503,9 @@ class MainViewModel @Inject constructor(
     }
     fun resumeAfterForeground() {
         if (_uiState.value.screen == AppScreen.PLAYER) _uiState.value.selectedChannel?.let(::startPlayback)
+        if (_uiState.value.updateState is UpdateState.PermissionRequired && !appUpdateManager.requiresInstallPermission()) {
+            requestUpdateInstall()
+        }
     }
     fun releasePlayer() {
         cancelPendingPlayback()

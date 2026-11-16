@@ -20,8 +20,8 @@ android {
         applicationId = "com.wangjingfei.hometv"
         minSdk = 23
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -29,6 +29,11 @@ android {
             "String",
             "DEFAULT_PLAYLIST_URL",
             "\"http://192.168.31.200:8091/playlist.m3u\"",
+        )
+        buildConfigField(
+            "String",
+            "UPDATE_MANIFEST_URL",
+            "\"https://github.com/wangjingfei/iptv-sh/releases/latest/download/update.json\"",
         )
     }
 
@@ -47,6 +52,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("boolean", "AUTO_UPDATE_ENABLED", "false")
         }
         release {
             isMinifyEnabled = true
@@ -56,6 +62,7 @@ android {
                 "proguard-rules.pro",
             )
             signingConfig = signingConfigs.findByName("release")
+            buildConfigField("boolean", "AUTO_UPDATE_ENABLED", "true")
         }
     }
 
@@ -141,6 +148,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("androidx.room:room-testing:2.7.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("org.json:json:20250517")
 
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
