@@ -1,6 +1,6 @@
 # Android TV 应用详细设计
 
-> 状态：`0.5.0` 当前阶段的代码开发与正式签名 APK 交付已完成。在 `0.4.0` 的播放器、缓存、诊断、遥控器和手机扫码配置上，新增正式版自动检查、下载、完整性/签名校验及系统确认安装流程。长期 release keystore、GitHub Secrets 和云端签名 dry-run 已验证；相关 JVM 测试、本地编译和更新后的 API 34/API 36 Android TV 模拟器关键遥控器路径均已通过。用户于 2026-11-16 决定暂时跳过真实设备验证，正式 GitHub Release、同签名升级和物理电视安装继续作为延期风险保留，明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
+> 状态：`0.5.0` 当前阶段的代码开发、正式签名 APK 和 GitHub Release 已完成。在 `0.4.0` 的播放器、缓存、诊断、遥控器和手机扫码配置上，新增正式版自动检查、下载、完整性/签名校验及系统确认安装流程。长期 release keystore、GitHub Secrets、云端签名 dry-run、正式发布资产和固定更新地址均已验证；相关 JVM 测试、本地编译和更新后的 API 34/API 36 Android TV 模拟器关键遥控器路径均已通过。用户于 2026-11-16 决定暂时跳过真实设备验证，同签名升级/回滚和物理电视安装继续作为延期风险保留，明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
 
 ## 1. 产品定义
 
@@ -24,7 +24,7 @@ v1 必须做到：
 - HLS 全屏直播、上下换台、音轨和字幕选择。
 - 自动重试、诊断页、离线元数据缓存和 EPG 过期提示。
 - 适配五向遥控器、媒体键和常见数字键。
-- 生成可侧载安装的正式签名 APK；长期 release keystore、加密备份、GitHub Secrets、云端签名 dry-run 和 `0.5.0` 正式签名 APK 均已完成。应用商店发布不属于 v1 必交范围。
+- 生成可侧载安装的正式签名 APK；长期 release keystore、加密备份、GitHub Secrets、云端签名 dry-run、`0.5.0` 正式签名 APK 和 GitHub Release 均已完成。应用商店发布不属于 v1 必交范围。
 - 正式版从 GitHub Release 检查更新，下载并验证后调用 Android 系统安装界面；开发版不参与正式更新。
 
 ### 1.3 明确不做
@@ -569,6 +569,7 @@ Idle
 - [x] 实现 GitHub Release 更新检查、APK 下载、完整性/签名验证、未知来源授权和系统安装入口。
 - [x] 配置标签触发的签名构建、`update.json` 生成和 GitHub Release 发布工作流。
 - [x] 配置用户持有的长期 release keystore 和 GitHub Actions Secrets。
+- [x] 发布 `v0.5.0`，核验公开 APK、`update.json`、摘要、版本、包名和签名证书。
 - [ ] 在电视实测同签名升级/回滚（延期）。
 - [ ] 在目标电视上完成客厅距离验收（延期）。
 
@@ -581,6 +582,7 @@ Idle
 - [x] 当前规模的 112 个频道导入、XMLTV 时区解析、缓存、故障降级和遥控器关键路径已有自动化证据。
 - [x] 长期 release keystore、加密备份、GitHub Secrets 和云端签名 dry-run 已验证。
 - [x] 已生成并校验 `0.5.0` 正式签名 APK，附带手动安装和验收说明。
+- [x] 已发布 `v0.5.0` GitHub Release，固定更新清单地址可公开访问，发布 APK 与清单一致。
 
 该状态只说明代码和安装包达到当前交付范围，不代表生产实机验收通过。
 
