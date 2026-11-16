@@ -2,7 +2,7 @@
 
 ## 当前结论
 
-`0.5.0` 开发版新增正式版自更新代码和标签发布工作流，并继续具备可重复构建的 Gradle 工程、单元测试、显式数据库迁移和可侧载 Debug APK。长期 release keystore 与四个 GitHub Actions Secrets 已配置，本地正式签名构建和更新清单规则已验证；发布工作流 dry-run、真实 GitHub Release、系统安装确认和同签名升级仍待验证。
+`0.5.0` 开发版新增正式版自更新代码和标签发布工作流，并继续具备可重复构建的 Gradle 工程、单元测试、显式数据库迁移和可侧载 Debug APK。长期 release keystore 与四个 GitHub Actions Secrets 已配置，本地正式签名构建、更新清单规则和云端发布工作流 dry-run 已验证；真实 GitHub Release、系统安装确认和同签名升级仍待验证。
 
 ## 2026-11-16 自动更新开发验证
 
@@ -12,13 +12,14 @@
 | JVM 单元测试 | 通过 | 39 项；在既有 35 项基础上新增合法 HTTPS 清单、摘要格式归一化、拒绝 HTTP/错误摘要、超过 500 MiB 包，以及安装授权返回状态策略测试 |
 | APK 安全校验代码 | 已实现，真实签名包未实测 | 下载后验证清单大小、APK SHA-256、包名、版本号、清单证书和当前安装证书；失败文件会删除 |
 | 安装交互 | 已实现，物理电视未验证 | Android 8.0+ 缺少授权时进入单应用“安装未知应用”设置，返回后调用系统 APK 安装界面 |
-| GitHub Release 工作流 | 已配置，待 dry-run | 手动触发只上传签名 APK 与 `update.json` artifact；`v*` 标签触发才创建 Release。长期 keystore 与 4 个 Actions Secrets 已配置 |
+| GitHub Release 工作流 | dry-run 通过，尚未正式发布 | PR #15 的构建与 API 34 Android TV 设备测试均通过；手动运行 `43816612953` 成功还原长期密钥、测试、构建签名 APK、生成并上传 `update.json`，发布 job 按设计跳过，复核确认 GitHub Release 列表为空 |
 | Debug 自更新隔离 | 通过编译 | `.debug` 包明确禁用正式自更新，避免与正式包名/签名混淆 |
 | API 36 更新界面与遥控器 | 通过 | Android TV 1920×1080 模拟器检查无文字截断或控件重叠；方向键完整验证 XMLTV → 测试连接 → 诊断 → 手机设置 → 检查更新，并按反向路径返回 |
 | 临时签名发布清单 | 通过 | 一次性 JKS 构建的 v1/v2 签名 APK 可生成并回读 `update.json`；版本从 Release `BuildConfig.java` 动态读取，并与 APK 元数据和清单交叉核对；临时密钥和 APK 在验证后删除，不作为发布物 |
 | 安装授权返回状态 | 自动化策略通过，系统界面待实机验证 | 仅在处于待授权状态且系统已授予安装权限时自动继续；未授权返回和普通启动不会触发安装界面 |
 | `0.5.0` GitHub Actions | 通过 | PR #11 的运行 `43798476593` 中，build 与 API 34 Android TV instrumentation 均通过；包含 38 项 JVM 测试、更新后的设置页遥控器路径、Release/R8 与临时签名更新清单验证 |
 | 长期正式签名身份 | 本地通过，尚未发布 | 2026-11-16 生成并加密备份长期 JKS，四个 Actions Secrets 已配置；本地签名 APK 的证书 SHA-256 为 `2759ad17a978eda42ee4d1821088114c03785e1beb538c7e2995e66cd3d376a6`，与导出证书一致 |
+| 云端正式签名产物 | 通过，artifact 保留 7 天 | 运行 `43816612953` 的 `home-tv-0.5.0.apk` 包名为 `com.wangjingfei.hometv`，APK SHA-256 为 `b95cbc1448489b68bd5839ed0f36177e9c95fad499eab5182a4430f2aa669de6`，大小 `3244246` 字节；版本、摘要、大小和证书指纹均与 `update.json` 一致 |
 
 以下 `0.4.0` 设备结论保留作为现有功能回归基线。本次已重新执行上表中的 API 36 更新设置路径；物理电视、真实 GitHub Release、系统安装确认和同签名升级仍未重新验证。
 

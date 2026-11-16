@@ -1,6 +1,6 @@
 # Android TV 应用详细设计
 
-> 状态：`0.5.0` 开发版已实现。在 `0.4.0` 的播放器、缓存、诊断、遥控器和手机扫码配置上，新增正式版自动检查、下载、完整性/签名校验及系统确认安装流程。长期 release keystore 与 GitHub Secrets 已配置；相关 JVM 测试、本地编译和更新后的 API 34/API 36 Android TV 模拟器关键遥控器路径均已通过。正式 GitHub Release、同签名升级和物理电视安装仍未验证，明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
+> 状态：`0.5.0` 开发版已实现。在 `0.4.0` 的播放器、缓存、诊断、遥控器和手机扫码配置上，新增正式版自动检查、下载、完整性/签名校验及系统确认安装流程。长期 release keystore、GitHub Secrets 和云端签名 dry-run 已验证；相关 JVM 测试、本地编译和更新后的 API 34/API 36 Android TV 模拟器关键遥控器路径均已通过。正式 GitHub Release、同签名升级和物理电视安装仍未验证，明细见[《Android TV 开发验证记录》](android-tv-test-report.md)。
 
 ## 1. 产品定义
 
