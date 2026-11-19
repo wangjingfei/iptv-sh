@@ -500,6 +500,11 @@ class MainViewModel @Inject constructor(
         runDiagnostics()
     }
 
+    fun navigateBack() {
+        val state = _uiState.value
+        if (state.screen == AppScreen.PLAYER && state.controlsVisible) hideControls() else openHome()
+    }
+
     fun pauseForBackground() {
         stopRemoteSetup()
         cancelPendingPlayback()

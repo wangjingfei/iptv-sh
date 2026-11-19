@@ -27,6 +27,9 @@
     <string name="next_program">接下来  %1$s</string>
     <string name="programme_guide">节目单</string>
     <string name="no_future_programme">暂无未来节目</string>
+    <string name="programme_time_range">%1$s–%2$s</string>
+    <string name="no_programme_description">暂无节目简介</string>
+    <string name="close">关闭</string>
     <string name="quick_channel">%1$d  %2$s</string>
     <string name="subtitles_on">字幕开</string>
     <string name="subtitles_off">字幕关</string>

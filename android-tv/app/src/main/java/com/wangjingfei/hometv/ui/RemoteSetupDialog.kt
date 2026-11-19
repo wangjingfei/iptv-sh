@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -73,23 +71,23 @@ internal fun RemoteSetupDialog(
                     Text(
                         text = session.url,
                         color = TextMuted,
-                        fontSize = 14.sp,
+                        fontSize = 18.sp,
                         maxLines = 4,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(stringResource(R.string.phone_setup_expiry), color = TextMuted, fontSize = 15.sp)
+                    Text(stringResource(R.string.phone_setup_expiry), color = TextMuted, fontSize = 18.sp)
                 }
             }
         },
         confirmButton = {
             if (canApply) {
-                Button(onClick = onApply, modifier = Modifier.testTag("remote-setup-apply")) {
+                TvActionButton(onClick = onApply, modifier = Modifier.testTag("remote-setup-apply")) {
                     Text(stringResource(R.string.apply_tested_source))
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            TvActionButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
         shape = RoundedCornerShape(6.dp),
         containerColor = Panel,
