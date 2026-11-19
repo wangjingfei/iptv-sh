@@ -1,6 +1,6 @@
 # Android TV 客户端
 
-`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前代码版本为 `0.6.0`，包含三栏首页、统一遥控器焦点视觉、可滚动设置与诊断区域和具名 TV banner；正式发布由 `v0.6.0` 标签触发，当前发布入口见 [GitHub Release](https://github.com/wangjingfei/iptv-sh/releases/latest)。正式版自更新流程、长期 release keystore、GitHub Secrets、云端签名和固定更新地址均已建立并验证，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。用户于 2026-11-16 决定暂时跳过真实设备验证；物理电视遥控器、4K 解码、长时间播放、手机实网扫码和同签名升级/回滚均保留为延期项，不视为已经通过。
+`android-tv/` 是“家庭电视”原生 Android TV / Google TV 客户端。当前版本 `0.6.0` 已于 2026-11-19 发布，包含三栏首页、统一遥控器焦点视觉、可滚动设置与诊断区域和具名 TV banner；正式安装包见 [GitHub Release](https://github.com/wangjingfei/iptv-sh/releases/tag/v0.6.0)。正式版自更新流程、长期 release keystore、GitHub Secrets、云端签名和固定更新地址均已验证，GitHub Actions 使用 API 34 Android TV 镜像执行设备测试。用户于 2026-11-16 决定暂时跳过真实设备验证；物理电视遥控器、4K 解码、长时间播放、手机实网扫码和同签名升级/回滚均保留为延期项，不视为已经通过。
 
 ## 已实现
 
@@ -138,7 +138,7 @@ gh workflow run android-tv-release.yml --ref main --repo wangjingfei/iptv-sh
 gh run watch --repo wangjingfei/iptv-sh
 ```
 
-release keystore 是应用的长期身份。丢失后无法给已安装版本做原位升级；泄露后必须视为发布身份失陷。原始 JKS、密码和恢复说明必须保存在独立的加密备份中，不得提交到 Git。`v0.5.0` 已于 2026-11-16 发布；后续版本必须先更新 `versionCode` 和 `versionName`，测试通过后再推送与版本名一致的标签：
+release keystore 是应用的长期身份。丢失后无法给已安装版本做原位升级；泄露后必须视为发布身份失陷。原始 JKS、密码和恢复说明必须保存在独立的加密备份中，不得提交到 Git。`v0.5.0` 于 2026-11-16 首次发布，`v0.6.0` 于 2026-11-19 使用同一签名链发布；后续版本必须先更新 `versionCode` 和 `versionName`，测试通过后再推送与版本名一致的标签：
 
 ```sh
 git tag v0.5.1
