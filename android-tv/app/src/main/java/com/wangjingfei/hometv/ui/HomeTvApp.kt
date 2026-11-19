@@ -467,7 +467,6 @@ private fun ProgrammePanel(
                 Icon(
                     if (channel.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     stringResource(R.string.favorite),
-                    tint = if (channel.favorite) Ink else TextPrimary,
                 )
             }
         }
@@ -663,7 +662,6 @@ private fun PlayerOverlay(state: MainUiState, viewModel: MainViewModel, channel:
                     Icon(
                         if (channel.favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         stringResource(R.string.favorite),
-                        tint = if (channel.favorite) Ink else TextPrimary,
                     )
                 }
                 TvActionButton(onClick = viewModel::cycleAudio) {
