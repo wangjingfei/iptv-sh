@@ -1,6 +1,7 @@
 package com.wangjingfei.hometv
 
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -12,7 +13,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.wangjingfei.hometv.ui.HomeTvApp
 import com.wangjingfei.hometv.ui.HomeTvTheme
+import com.wangjingfei.hometv.ui.AppScreen
 import com.wangjingfei.hometv.ui.MainViewModel
+import com.wangjingfei.hometv.ui.digitFromKeyCode
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
@@ -36,6 +39,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        val screen = viewModel.uiState.value.screen
+        if (screen == AppScreen.HOME || screen == AppScreen.PLAYER) {
+            digitFromKeyCode(keyCode)?.let {
+                viewModel.enterDigit(it)
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     override fun onStop() {

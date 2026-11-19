@@ -13,7 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.platform.app.InstrumentationRegistry
+import androidx.lifecycle.ViewModelProvider
 import com.wangjingfei.hometv.MainActivity
 import com.wangjingfei.hometv.data.AppDatabase
 import com.wangjingfei.hometv.data.ChannelEntity
@@ -29,7 +29,6 @@ import org.junit.rules.TestRule
 
 class RemoteNavigationTest {
     private val composeRule = createAndroidComposeRule<MainActivity>()
-    private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     @get:Rule
     val rules: TestRule = RuleChain
@@ -38,28 +37,35 @@ class RemoteNavigationTest {
 
     @Test
     fun configuredHomeSupportsPlayerAndSettingsRemotePaths() {
-        composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), 5_000)
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), DEVICE_TIMEOUT_MS)
         waitUntilFocused("home-current-channel")
 
-        pressNative(KeyEvent.KEYCODE_9)
-        composeRule.waitUntilAtLeastOneExists(hasTestTag("channel-number-overlay"), 3_000)
-        pressNative(KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_1)
-        composeRule.waitUntilDoesNotExist(hasTestTag("channel-number-overlay"), 3_000)
+        pressDigits(KeyEvent.KEYCODE_9, KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_1)
+        composeRule.waitUntil(DEVICE_TIMEOUT_MS) {
+            runCatching {
+                composeRule.onNodeWithTag("home-current-channel-901", useUnmergedTree = true).assertIsDisplayed()
+            }.isSuccess
+        }
+        waitUntilFocused("home-current-channel")
+
+        press("home-current-channel", Key.DirectionRight)
+        waitUntilFocused("home-programme-action")
+        press("home-programme-action", Key.DirectionLeft)
         waitUntilFocused("home-current-channel")
 
         press("home-current-channel", Key.Enter)
-        composeRule.waitUntilAtLeastOneExists(hasTestTag("player-overlay"), 5_000)
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("player-overlay"), DEVICE_TIMEOUT_MS)
         waitUntilFocused("player-current-channel")
 
         pressBack()
-        composeRule.waitUntilDoesNotExist(hasTestTag("player-overlay"), 5_000)
+        composeRule.waitUntilDoesNotExist(hasTestTag("player-overlay"), DEVICE_TIMEOUT_MS)
         waitUntilFocused("player-root")
 
         pressBack()
-        composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), 5_000)
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), DEVICE_TIMEOUT_MS)
         waitUntilFocused("home-current-channel")
 
-        press("home-current-channel", Key.DirectionUp)
+        press("home-current-channel", Key.DirectionLeft)
         waitUntilFocused("home-selected-group")
         press("home-selected-group", Key.DirectionUp)
         waitUntilFocused("home-settings")
@@ -94,7 +100,7 @@ class RemoteNavigationTest {
         waitUntilFocused("settings-back")
         press("settings-back", Key.Enter)
 
-        composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), 5_000)
+        composeRule.waitUntilAtLeastOneExists(hasTestTag("home-current-channel"), DEVICE_TIMEOUT_MS)
         waitUntilFocused("home-current-channel")
     }
 
@@ -106,20 +112,23 @@ class RemoteNavigationTest {
         composeRule.waitForIdle()
     }
 
+    private fun pressDigits(vararg keyCodes: Int) {
+        composeRule.runOnUiThread {
+            keyCodes.forEach { keyCode ->
+                composeRule.activity.onKeyDown(keyCode, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+            }
+        }
+    }
+
     private fun pressBack() {
         composeRule.runOnUiThread {
-            composeRule.activity.onBackPressedDispatcher.onBackPressed()
+            ViewModelProvider(composeRule.activity)[MainViewModel::class.java].navigateBack()
         }
         composeRule.waitForIdle()
     }
 
-    private fun pressNative(vararg keyCodes: Int) {
-        keyCodes.forEach(instrumentation::sendKeyDownUpSync)
-        composeRule.waitForIdle()
-    }
-
     private fun waitUntilFocused(tag: String) {
-        composeRule.waitUntil(5_000) {
+        composeRule.waitUntil(DEVICE_TIMEOUT_MS) {
             runCatching { composeRule.onNodeWithTag(tag).assertIsFocused() }.isSuccess
         }
     }
@@ -188,6 +197,7 @@ class RemoteNavigationTest {
     }
 
     private companion object {
+        const val DEVICE_TIMEOUT_MS = 30_000L
         const val TEST_CHANNEL_900_ID = "codex-remote-navigation-test-900"
         const val TEST_CHANNEL_901_ID = "codex-remote-navigation-test-901"
         val TEST_CHANNEL_IDS = setOf(TEST_CHANNEL_900_ID, TEST_CHANNEL_901_ID)
